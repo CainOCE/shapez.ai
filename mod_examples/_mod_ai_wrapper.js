@@ -19,6 +19,12 @@ class Mod extends shapez.Mod {
             return true;
         });
 
+        // Send a notification
+        this.root.hud.signals.notification.dispatch(
+            notificationComp.notificationText,
+            shapez.enumNotificationType.info
+        );
+
         //Listen for Signals
 
         //Send Signals
