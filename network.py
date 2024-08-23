@@ -82,6 +82,7 @@ def create_action_space(input_space, empty_neighbours):
     actions, spaces = np.meshgrid(input_space, empty_neighbours)
     return actions, spaces
 
+
 # test for get spaces
 X = np.zeros((5,5))
 X[1][1] = 2
@@ -89,14 +90,17 @@ empty_neighbours = get_available_spaces(X)
 actions, spaces = create_action_space(input_space, empty_neighbours)
 
 # classic Q-learning model -- no machine learning
+# is this Q-learning I forget exactly what that is...
 class qLearn:
     def __init__(self, initial_state, inputs):
         self.state = initial_state
         self.inputs = inputs
 
+    # update the state
     def update_state(self, new_state):
         self.state = new_state
 
+    # find the best move given the current state
     def next_best_move(self):
         available_spaces = get_available_spaces(self.state)
         current_best_score = -10000 # current best move
@@ -111,6 +115,13 @@ class qLearn:
                     best_move = action
                     best_move_pos = space
         return best_move_pos, best_move
+
+    # run model num_steps amount of times
+    def run(self, num_steps):
+        for step in range(num_steps):
+            pos, action = self.next_best_move()
+            next_state = get_next_state(self.state, pos, action)
+            self.update_state(next_state)
 
 # Neural Network class
 class Network:
