@@ -39,6 +39,8 @@ import { AchievementProxy } from "./achievement_proxy";
 import { SoundProxy } from "./sound_proxy";
 import { GameTime } from "./time/game_time";
 import { MOD_SIGNALS } from "../mods/mod_signals";
+import { MetaBeltBuilding } from "./buildings/belt";
+import { ShapezBot } from "./bot";
 
 const logger = createLogger("ingame/core");
 
@@ -187,9 +189,12 @@ export class GameCore {
             rotationVariant: 0,
             variant: defaultBuildingVariant,
         });
+
         this.root.map.placeStaticEntity(hub);
         this.root.entityMgr.registerEntity(hub);
         this.root.camera.center = new Vector(-5, 2).multiplyScalar(globalConfig.tileSize);
+        const bot = new ShapezBot(this.root);
+        bot.init;
     }
 
     /**
