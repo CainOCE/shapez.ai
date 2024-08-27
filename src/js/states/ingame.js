@@ -347,6 +347,7 @@ export class InGameState extends GameState {
      * The final stage where this game is running and updating regulary.
      */
     stage10GameRunning() {
+        //last code run before the game state starts running
         if (this.switchStage(GAME_LOADING_STATES.s10_gameRunning)) {
             this.core.root.signals.readyToRender.dispatch();
 
@@ -441,7 +442,7 @@ export class InGameState extends GameState {
                 this.stage10GameRunning();
             }
         }
-
+        // console.log("yeahbrah");
         if (this.stage === GAME_LOADING_STATES.s10_gameRunning) {
             this.core.tick(dt);
         }
@@ -449,6 +450,7 @@ export class InGameState extends GameState {
         // If the stage is still active (This might not be the case if tick() moved us to game over)
         if (this.stage === GAME_LOADING_STATES.s10_gameRunning) {
             // Only draw if page visible
+
             if (this.app.pageVisible) {
                 this.core.draw();
             }
@@ -462,6 +464,7 @@ export class InGameState extends GameState {
     }
 
     onBackgroundTick(dt) {
+        console.log("first");
         this.onRender(dt);
     }
 

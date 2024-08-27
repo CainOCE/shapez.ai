@@ -61,10 +61,14 @@ function bootApp() {
     logger.log("Page Loaded");
     app = new Application();
     app.boot();
+    console.log("afterboot");
 }
 
 if (G_IS_STANDALONE) {
+    console.log("??");
     window.addEventListener("load", bootApp);
 } else {
+    console.log("ok");
     bootApp();
+    console.log("next");
 }

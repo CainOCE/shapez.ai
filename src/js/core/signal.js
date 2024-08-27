@@ -33,6 +33,7 @@ export class Signal {
      * @param  {...any} payload
      */
     dispatch() {
+        //console.log("al;l the toime");
         const modifyState = this.modifyCount;
 
         const n = this.receivers.length;

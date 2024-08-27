@@ -38,7 +38,7 @@ import { WegameSplashState } from "./states/wegame_splash";
 import { MODS } from "./mods/modloader";
 import { MOD_SIGNALS } from "./mods/mod_signals";
 import { ModsState } from "./states/mods";
-
+import { Sender } from "./src_ai/brah";
 /**
  * @typedef {import("./platform/achievement_provider").AchievementProviderInterface} AchievementProviderInterface
  * @typedef {import("./platform/sound").SoundInterface} SoundInterface
@@ -79,6 +79,7 @@ export class Application {
 
         try {
             await MODS.initMods();
+            console.log("nope");
         } catch (ex) {
             alert("Failed to load mods (launch with --dev for more info): \n\n" + ex);
         }
@@ -93,6 +94,7 @@ export class Application {
         this.inputMgr = new InputDistributor(this);
         this.backgroundResourceLoader = new BackgroundResourcesLoader(this);
         this.clientApi = new ClientAPI(this);
+        this.sender = new Sender(this);
 
         // Restrictions (Like demo etc)
         this.restrictionMgr = new RestrictionManager(this);
@@ -168,7 +170,6 @@ export class Application {
         this.ticker.frameEmitted.add(this.onFrameEmitted, this);
         this.ticker.bgFrameEmitted.add(this.onBackgroundFrame, this);
         this.ticker.start();
-
         window.focus();
 
         MOD_SIGNALS.appBooted.dispatch();
@@ -384,6 +385,7 @@ export class Application {
      * @param {number} dt
      */
     onFrameEmitted(dt) {
+        //console.log("something is going on here");
         if (!this.isRenderable()) {
             return;
         }
@@ -399,6 +401,7 @@ export class Application {
         const currentState = this.stateMgr.getCurrentState();
         this.trackedIsPlaying.set(currentState && currentState.getIsIngame());
         if (currentState) {
+            new Sender(currentState);
             currentState.onRender(dt);
         }
     }

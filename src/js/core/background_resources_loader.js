@@ -89,7 +89,7 @@ export class BackgroundResourcesLoader {
          * @type {((progressHandler: (progress: number) => void) => Promise<void>)[]}
          */
         let promiseFunctions = [];
-
+        console.log("brah");
         // CSS
         for (let i = 0; i < css.length; ++i) {
             promiseFunctions.push(progress =>

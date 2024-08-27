@@ -149,7 +149,7 @@ export class ModLoader {
             this.initialized = true;
             return;
         }
-
+        console.log;
         // Create a storage for reading mod settings
         const storage = G_IS_STANDALONE
             ? new StorageImplElectron(this.app)
@@ -180,7 +180,7 @@ export class ModLoader {
                 mods.push(await response.text());
             }
         }
-
+        console.log(909);
         window.$shapez_registerMod = (modClass, meta) => {
             if (this.initialized) {
                 throw new Error("Can't register mod after modloader is initialized");
@@ -195,6 +195,23 @@ export class ModLoader {
             });
         };
 
+        // const METADATA = {
+        //     author: "Ryan",
+        //     name: "AI mod",
+        //     version: "1",
+        //     id: "AI",
+        //     description: "Sends to API",
+        //     minimumGameVersion: ">=1.5.0",
+
+        //     // You can specify this parameter if savegames will still work
+        //     // after your mod has been uninstalled
+        //     doesNotAffectSavegame: true,
+        // };
+        // var modClass = new Sender();
+        // this.modLoadQueue.push({
+        //     modClass: modClass,
+        //     meta: METADATA,
+        // });
         mods.forEach(modCode => {
             modCode += `
                         if (typeof Mod !== 'undefined') {
@@ -214,7 +231,7 @@ export class ModLoader {
         });
 
         delete window.$shapez_registerMod;
-
+        console.log(this.modLoadQueue);
         for (let i = 0; i < this.modLoadQueue.length; i++) {
             const { modClass, meta } = this.modLoadQueue[i];
             const modDataFile = "modsettings_" + meta.id + "__" + meta.version + ".json";
