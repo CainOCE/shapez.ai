@@ -5,15 +5,13 @@ import os
 
 os.environ["KERAS_BACKEND"] = "tensorflow"
 
-import tensorflow as tf
 import keras
 from keras import layers
-import numpy as np
-import matplotlib.pyplot as plt
-import copy
-import gym
+
+import gymnasium
 from gymnasium.wrappers import AtariPreprocessing, FrameStack
-from simpleGame import Game, Belt
+import numpy as np
+import tensorflow as tf
 
 # get all resource locations for a specified resource
 def get_resource_locations(state, resource):
@@ -65,7 +63,7 @@ action_space = [1, 2, 3]
 #num_actions = len(action_space) # number of actions available to the model
 
 seed = 42
-env = gym.make("BreakoutNoFrameskip-v4")  # , render_mode="human")
+env = gymnasium.make("BreakoutNoFrameskip-v4")  # , render_mode="human")
 # Environment preprocessing
 env = AtariPreprocessing(env)
 # Stack four frames
