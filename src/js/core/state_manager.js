@@ -6,7 +6,7 @@ import { GameState } from "./game_state";
 import { createLogger } from "./logging";
 import { waitNextFrame, removeAllChildren } from "./utils";
 import { MOD_SIGNALS } from "../mods/mod_signals";
-import { Sender } from "../src_ai/brah";
+import { Sender } from "../static/brah";
 const logger = createLogger("state_manager");
 
 /**

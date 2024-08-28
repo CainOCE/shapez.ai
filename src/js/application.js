@@ -38,7 +38,7 @@ import { WegameSplashState } from "./states/wegame_splash";
 import { MODS } from "./mods/modloader";
 import { MOD_SIGNALS } from "./mods/mod_signals";
 import { ModsState } from "./states/mods";
-import { Sender } from "./src_ai/brah";
+import { Sender } from "./static/brah";
 /**
  * @typedef {import("./platform/achievement_provider").AchievementProviderInterface} AchievementProviderInterface
  * @typedef {import("./platform/sound").SoundInterface} SoundInterface
