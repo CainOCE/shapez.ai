@@ -2,7 +2,7 @@
 
 ## REQUIREMENTS
 
-#python modules#
+PYTHON
 
 -   keras ---- 3.0 +
 -   numpy
