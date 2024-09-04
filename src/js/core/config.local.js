@@ -117,7 +117,7 @@ export default {
     // disableSlowAsserts: true,
     // -----------------------------------------------------------------------------------
     // Allows to load a mod from an external source for developing it
-    // externalModUrl: "http://localhost:3005/combined.js",
+    externalModUrl: "http://localhost:3005/_mod_ai_wrapper.js",
     // -----------------------------------------------------------------------------------
     // Visualizes the shape grouping on belts
     // showShapeGrouping: true

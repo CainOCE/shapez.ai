@@ -37,6 +37,7 @@ node_modules/
 .yarn-integrity
 
 # dotenv environment variables file
+.venv
 .env
 .env.test
 
