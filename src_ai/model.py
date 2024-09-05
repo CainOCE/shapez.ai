@@ -6,13 +6,13 @@ Created on Tue Aug 13, 2024 at 09:55:41
 """
 
 import os
-# import keras
-# import gymnasium
-# import numpy as np
-# import tensorflow as tf
+import keras
+import gymnasium
+import numpy as np
+import tensorflow as tf
 
-# from keras import layers
-# from gymnasium.wrappers import AtariPreprocessing, FrameStack
+from keras import layers
+from gymnasium.wrappers import AtariPreprocessing, FrameStack
 
 os.environ["KERAS_BACKEND"] = "tensorflow"
 
@@ -65,50 +65,6 @@ def rhys_model():
     #   - need to adjust action space
     #   - need to adjust input space
     #   - hopefully get some visualisation tool
-
-    # get all resource locations for a specified resource
-    def get_resource_locations(state, resource):
-        resource_locations = []
-        for i in range(len(state)):
-            for j in range(len(state[0])):
-                if state[i][j] == resource:
-                    resource_locations.append((i, j))
-        return resource_locations
-
-    # find the nearest instance of a given resource to the hub (Manhattan distance)
-    def nearest_resource(hub_location, resource_locations):
-        if len(resource_locations) == 0:
-            return None # no resources on the map
-        nearest = (0, 0)
-        distance = 100000 # make large so shorter distance is guaranteed
-        for resource in resource_locations:
-            # does not account for preexisting belts
-            dist = abs(hub_location[0] - resource[0]) + abs(hub_location[1] - resource[1])
-            if dist < distance:
-                nearest = resource
-        return resource
-
-    # find a path to the hub avoiding pre-existing belts
-    def path_to_hub(state, hub_location, tile):
-        return None
-
-
-    # some heuristic function to determine how "good" a state is
-    # this approach is more in line with a traditional q-learning model
-    # where we as humans define the heuristic.
-    # ideally we want to model to do this itself
-    # with q-learning we just some initial states
-
-    # shapes on screen is good
-    # shapes that match goal shape is better
-    # belts connecting between resource - hub is good
-    # dont know if this will be needed
-    def heuristic(state, goal):
-        # state is some array of the board
-        #   may be a condensed/zoomed in version of the board
-        #   only focus on part of the board that matters right now
-        # goal is the current goal (eg. 30x squares)
-        return 0
 
     # game specific information
     action_space = [1, 2, 3]
@@ -310,3 +266,6 @@ def rhys_model():
 
 if __name__ == "__main__":
     print("Please call this module as a dependency or import.")
+
+
+rhys_model()
