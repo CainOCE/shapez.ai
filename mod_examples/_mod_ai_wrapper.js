@@ -156,7 +156,7 @@ class Mod extends shapez.Mod {
                 newGameState.push(mapChunkList);
 
                 // Send test package to Python Backend
-                var test = sendGameStateToPython(newGameState);
+                var test = sendGameStateToPythongameState(newGameState);
                 console.log(test);
             }
         }
