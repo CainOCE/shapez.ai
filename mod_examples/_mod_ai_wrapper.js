@@ -9,9 +9,11 @@ const METADATA = {
     minimumGameVersion: ">=1.5.0",
 };
 
+
 class Mod extends shapez.Mod {
     init() {
         console.log("Shapez.ai Module Initialized");
+        console.log("root:", this.root);
 
         // Sandbox Mode
         this.modInterface.replaceMethod(shapez.Blueprint, "getCost", function () {
