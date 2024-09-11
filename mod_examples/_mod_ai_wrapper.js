@@ -75,8 +75,7 @@ class Mod extends shapez.Mod {
                 // var u = tryPlaceSimpleBuilding(root, shapez.MetaBeltBuilding, 3, 4)
                 // var v = tryPlaceSimpleBuilding(root, shapez.MetaMinerBuilding, 3, 5)
 
-                simpleNotification(root, "Querying AI Model...")
-                transform_data(root.gameState)
+                transform_data(root)
                 return shapez.STOP_PROPAGATION;
             },
         });
@@ -88,8 +87,10 @@ class Mod extends shapez.Mod {
          * @param {type} gameState - Shapez.__
          * @returns {type} None
          */
-        function transform_data(gameState) {
+        function transform_data(root) {
+            var gameState = root.gameState;
             if (gameState == null) { return; }  // Guard Clause
+            simpleNotification(root, "Gathering gameState...")
 
             // TODO:  Can this process/strategy be simplified?
             function extractRelevantDataEntity(entity) {
@@ -132,6 +133,7 @@ class Mod extends shapez.Mod {
                 var newGameState = [];
 
                 // 1. Extract Entities
+                simpleNotification(root, "Extracting Entities...")
                 var entity_list = [];
                 var entities = gameState["core"]["root"]["entityMgr"]["entities"];
                 for (let i = 0; i < entities.length; i++) {
@@ -141,11 +143,13 @@ class Mod extends shapez.Mod {
                 newGameState.push(entity_list);
 
                 // 2. Extract Goals
+                simpleNotification(root, "Extracting Goals...")
                 var goal = gameState["core"]["root"]["hubGoals"]["currentGoal"];
                 let transfferedGoal = extractRelevantDataGoal(goal);
                 newGameState.push(transfferedGoal);
 
                 // 3. Extract Map
+                simpleNotification(root, "Extracting Map Features...")
                 var mapChunkList = [];
                 var map = gameState["core"]["root"]["map"]["chunksById"];
                 for (const [key, value] of map) {
@@ -156,7 +160,9 @@ class Mod extends shapez.Mod {
                 newGameState.push(mapChunkList);
 
                 // Send test package to Python Backend
+                simpleNotification(root, "Querying AI Model...")
                 var test = sendGameStateToPythongameState(newGameState);
+                simpleNotification(root, "AI Model Query Complete")
                 console.log(test);
             }
         }
