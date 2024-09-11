@@ -9,11 +9,9 @@ const METADATA = {
     minimumGameVersion: ">=1.5.0",
 };
 
-
 class Mod extends shapez.Mod {
     init() {
         console.log("Shapez.ai Module Initialized");
-
 
         // Sandbox Mode
         this.modInterface.replaceMethod(shapez.Blueprint, "getCost", function () {
@@ -25,12 +23,36 @@ class Mod extends shapez.Mod {
 
 
         /* Calls a custom event when keybind is pressed. */
-        function custom_event() {
-            this.dialogs.showInfo("Mod Message", "It worked!");
-            // this.root.hud.signals.notification.dispatch(
+        function custom_event(root) {
+            console.log("shapez:", shapez);
+            console.log("root:", root);
+            root.dialogs.showInfo("Mod Message", "It worked!");
+            // root.hud.signals.notification.dispatch(
             //     "It worked!",
             //     shapez.enumNotificationType.info
             // );
+
+            // Ryan: Place belt and extractor
+            shapez.GameLogic.tryPlaceBuilding({
+                origin: new shapez.Vector(3, 4),
+                building: shapez.gMetaBuildingRegistry.findByClass(
+                    shapez.MetaBeltBaseBuilding
+                ),
+                originalRotation: 0,
+                rotation: 0,
+                variant: "default",
+                rotationVariant: 0,
+            });
+            shapez.GameLogic.tryPlaceBuilding({
+                origin: new shapez.Vector(3, 5),
+                building: shapez.gMetaBuildingRegistry.findByClass(
+                    shapez.MetaMinerBuilding
+                ),
+                originalRotation: 0,
+                rotation: 0,
+                variant: "default",
+                rotationVariant: 0,
+            });
         }
 
 
@@ -43,46 +65,10 @@ class Mod extends shapez.Mod {
                 shift: true,
             },
             handler: root => {
-                //TODO: Fix the custom event to fire.
-                //custom_event();
-                this.dialogs.showInfo("Mod Message", "It worked!");
+                custom_event(this);
                 return shapez.STOP_PROPAGATION;
             },
         });
-
-
-        /**
-         * Places a building of type at x, y
-         *
-         * @param {type} buildingType - Shapez.Meta{*}Building Type
-         * @param {type} x - Horizontal Map Position, Left to Right
-         * @param {type} y - Vertical Map Position, Top to Bottom
-         * @returns {type} None
-         */
-        function place_building(buildingType, x, y) {
-
-            console.dir(buildingType)
-
-            // Define a building to be placed
-            const building = shapez.gMetaBuildingRegistry.findByClass(buildingType).createEntity({
-                root: shapez,
-                origin: new shapez.Vector(x, y),
-                rotation: 0,
-                originalRotation: 0,
-                rotationVariant: 0,
-                variant: "default",
-            });
-
-            // Add new building to appropriate lists.
-            shapez.BaseMap.placeStaticEntity(building);
-            shapez.EntityManager.registerEntity(building);
-        }
-
-        // console.dir(root)
-        console.dir(shapez)
-        // Ryan: Place belt and extractor
-        // place_building(shapez.MetaBeltBuilding, 3, 4);
-        place_building(shapez.MetaMinerBuilding, 3, 5);
 
 
         /**
@@ -159,8 +145,8 @@ class Mod extends shapez.Mod {
                 //newGameState.push(mapChunckList);
 
                 // Send test package to Python Backend
-                var test = await sendGameStateToPython(newGameState);
-                console.log(test);
+                // var test = await sendGameStateToPython(newGameState);
+                // console.log(test);
             }
         }
 

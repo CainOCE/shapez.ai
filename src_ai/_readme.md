@@ -2,7 +2,7 @@
 
 ## Python Requirements
 
-> TODO: This can be handled automaticallt by the requirements.txt
+> TODO: This can be handled automatically by the requirements.txt
 
 -   keras ---- 3.0 +
 -   numpy
