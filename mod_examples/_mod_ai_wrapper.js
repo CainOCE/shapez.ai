@@ -22,37 +22,45 @@ class Mod extends shapez.Mod {
         });
 
 
+        /**
+         * Simplifies the inbuilt tryPlaceBuilding Method
+         *
+         * @param {MetaBuilding} building class of MetaBuilding to place
+         * @param {number} X offset
+         * @param {number} y offsetparam0.rotation
+         * @returns {Entity}
+         */
+        function tryPlaceSimpleBuilding(building, x, y) {
+            gameLogic = this.signals // TODO Where is this stored?
+            return gameLogic.tryPlaceBuilding({
+                origin: new shapez.Vector(x, y),
+                building: shapez.gMetaBuildingRegistry.findByClass(
+                    building
+                ),
+                originalRotation: 0,
+                rotation: 0,
+                variant: "default",
+                rotationVariant: 0,
+            });
+        }
+
+
         /* Calls a custom event when keybind is pressed. */
         function custom_event(root) {
             console.log("shapez:", shapez);
             console.log("root:", root);
-            root.dialogs.showInfo("Mod Message", "It worked!");
+            console.log("startSignal:", root.signals.gameStarted)
+
+            // Display a message when triggered
+            root.dialogs.showInfo("Shapez.AI", "Custom place triggered");
             // root.hud.signals.notification.dispatch(
             //     "It worked!",
             //     shapez.enumNotificationType.info
             // );
 
             // Ryan: Place belt and extractor
-            shapez.GameLogic.tryPlaceBuilding({
-                origin: new shapez.Vector(3, 4),
-                building: shapez.gMetaBuildingRegistry.findByClass(
-                    shapez.MetaBeltBaseBuilding
-                ),
-                originalRotation: 0,
-                rotation: 0,
-                variant: "default",
-                rotationVariant: 0,
-            });
-            shapez.GameLogic.tryPlaceBuilding({
-                origin: new shapez.Vector(3, 5),
-                building: shapez.gMetaBuildingRegistry.findByClass(
-                    shapez.MetaMinerBuilding
-                ),
-                originalRotation: 0,
-                rotation: 0,
-                variant: "default",
-                rotationVariant: 0,
-            });
+            var u = tryPlaceSimpleBuilding(shapez.MetaBeltBuilding, 3, 4)
+            var v = tryPlaceSimpleBuilding(shapez.MetaMinerBuilding, 3, 5)
         }
 
 
