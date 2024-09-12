@@ -55,38 +55,29 @@ class shapezGym(gym.Env):
         self.goals = goals # dictionary containing the goals of the game (or some small subset of goals)
         self.num_actions = len(buildings.keys()) # number of possible values of each cell
         self.state = state
+        self.action_map = {0:'empty', 1: 'belt'}
+
+        self.shapes_produced = {}
         # example from chess
         #self.observation_space = spaces.Box(-16, 16, (8, 8))  # board 8x8
         #self.action_space = spaces.Discrete(64 * 16 + 4)
-
-
 
         self.observation_space = spaces.Box(0, self.num_actions, (size, size))
         self.action_space = spaces.Discrete(size**2 * self.num_actions)
 
 
-
-    """
-    # naive approach
-    # any building on any possible grid -- (size^2 * num_actions)
-    ###
-    # my idea: lmk if you can think of better
-    # if resource --> extractor
-    # if empty --> belt
-    # if belt --> delete
-    # if building --> delete
-    """
     def get_possible_moves(self, state):
         # to be implemented
         actions = set()
 
+        ### needs to be implemented
         for i in state:
             for j in state[0]:
                 cell_val = state[i][j]
-                if cell_val == 'empty':
-                    actions.add((i, j, 'belt'))
+                if self.action_map[cell_val] == 'empty':
+                    actions.add((i, j, 1)) # add belt
                 if cell_val == 'resource':
-                    actions.add((i,j,'extractor'))
+                    actions.add((i,j, 2))
 
         return actions
 
@@ -94,22 +85,21 @@ class shapezGym(gym.Env):
     def check_produced(self):
         # check if anything has reached the HUB
         # alternatviely, check what is currently on belts
-        pass
+
+        # return some product or None
+        product = None
+        return product
+
 
     def update_goal(self, product):
 
-        # minus from product goal
-        self.goals.update({product: self.goals.get(product) - 1})
+        # minus from product goal if desired product
+        if self.goals.keys.contains(product):
+            self.goals.update({product: self.goals.get(product) - 1})
 
-        # if zero more required, remove
-        if self.goals.get(product) == 0:
-            self.goals.pop(product)
-
-
-
-
-
-
+            # if zero more required, remove
+            if self.goals.get(product) == 0:
+                self.goals.pop(product)
 
     # update the goals because all previous goals have been met
     # maybe even smarter to do this in 2 or 3 level batches???
@@ -118,13 +108,18 @@ class shapezGym(gym.Env):
         for goal in new_goals: # list of goals to be added
             self.goals.update(goal)
 
+    def reset():
+        # reset to a new game -- maybe just one button press
+        # and return new fresh state
+        pass
 
-    def step(self, state, action):
+    def step(self, action, state):
         # action should already be legal
 
         i, j, m = action
         state[i][j] = m
         reward = 0
+        reached = False
 
         produced = self.check_produced()
         if produced in self.goals.keys():
@@ -144,15 +139,18 @@ class shapezGym(gym.Env):
             # path still exists. seems slow
             #
             # the case described above will be rareish, at least for small factory
-            # relative to size
+            # relative to size -- should lead to minimal loss in factory as wont result
+            #                     in rewards for prolonged time
             ####
 
             # if thing has reach the HUB --> update_goal
             self.update_goal(produced)
 
+            # cehck if goal was completed this step
+
             reward += 1 # just add one if something produced is in goals
 
-        return state, reward
+        return state, reward, reached
 
 
 
