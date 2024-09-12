@@ -6,17 +6,19 @@ Created on Tue Aug 13, 2024 at 09:55:46
 """
 
 from flask import Flask, request, jsonify, Response
-
+from flask_cors import CORS
 
 class ListenServer:
     """ Generates a REST API server for the python backend. """
 
     def __init__(self):
         self.app = Flask(__name__)
+        CORS(self.app)
         self._routing()
         self.alive = False
 
     def _routing(self):
+
         """Sets up the routes for the Flask app."""
         @self.app.route('/')
         def index_page_display():
@@ -55,6 +57,7 @@ class ListenServer:
 
     def receive(self, data_in):
         """ Handles incoming signals sent by the game instance. """
+        print(data_in)
         if data_in and data_in.get("message") == "Hello":
             data_out = "World"
         else:

@@ -17,7 +17,7 @@ const METADATA = {
 class Mod extends shapez.Mod {
     init() {
         console.log("Shapez.ai Module Initialized");
-        console.log("root:", this.root);
+        //console.log("root:", this.root);
 
         // Sandbox Mode
         this.modInterface.replaceMethod(shapez.Blueprint, "getCost", function () {
@@ -26,7 +26,6 @@ class Mod extends shapez.Mod {
         this.modInterface.replaceMethod(shapez.HubGoals, "isRewardUnlocked", function () {
             return true;
         });
-
 
         /**
          * Simplifies the inbuilt tryPlaceBuilding Method
@@ -37,12 +36,10 @@ class Mod extends shapez.Mod {
          * @returns {Entity}
          */
         function tryPlaceSimpleBuilding(root, building, x, y) {
-            console.log("root: ", root)
+            // console.log("root: ", root);
             return root.logic.tryPlaceBuilding({
                 origin: new shapez.Vector(x, y),
-                building: shapez.gMetaBuildingRegistry.findByClass(
-                    building
-                ),
+                building: shapez.gMetaBuildingRegistry.findByClass(building),
                 originalRotation: 0,
                 rotation: 0,
                 variant: "default",
@@ -50,16 +47,11 @@ class Mod extends shapez.Mod {
             });
         }
 
-
         /* Simplifies the notification system. */
         function simpleNotification(root, msg) {
             // Display a message when called
-            root.hud.signals.notification.dispatch(
-                msg,
-                shapez.enumNotificationType.info
-            );
+            root.hud.signals.notification.dispatch(msg, shapez.enumNotificationType.info);
         }
-
 
         // Register Custom keybinding
         this.modInterface.registerIngameKeybinding({
@@ -72,14 +64,13 @@ class Mod extends shapez.Mod {
             handler: root => {
                 // TEST Ryan: Place belt and extractor
                 // simpleNotification(root, "Ryan's Placement Test")
-                // var u = tryPlaceSimpleBuilding(root, shapez.MetaBeltBuilding, 3, 4)
+                // var u = tryPlaceSimpleBuilding(root, shapez.MetaMinerBuilding, -16, -10);
                 // var v = tryPlaceSimpleBuilding(root, shapez.MetaMinerBuilding, 3, 5)
 
-                transform_data(root)
+                transform_data(root);
                 return shapez.STOP_PROPAGATION;
             },
         });
-
 
         /**
          * Transforms the current gameState to a form readable by our model.
@@ -89,36 +80,97 @@ class Mod extends shapez.Mod {
          */
         function transform_data(root) {
             var gameState = root.gameState;
-            if (gameState == null) { return; }  // Guard Clause
-            simpleNotification(root, "Gathering gameState...")
+            if (gameState == null) {
+                return;
+            } // Guard Clause
+            simpleNotification(root, "Gathering gameState...");
 
             // TODO:  Can this process/strategy be simplified?
-            function extractRelevantDataEntity(entity) {
-                return {
-                    components: entity.components,
-                    uid: entity.uid,
-                };
+            function extractRelevantColumnsEntity(entities) {
+                let entitiesList = [];
+
+                for (let i = 0; i < entities.length; i++) {
+                    let entityList = [];
+                    let entity = entities[i]["components"];
+
+                    // get position of entity
+                    let xTile = entity["StaticMapEntity"]["origin"]["x"];
+                    let yTile = entity["StaticMapEntity"]["origin"]["y"];
+
+                    // 0 is north, 90 is east, 180 is south, 270 is west
+                    let rotation = entity["StaticMapEntity"]["rotation"];
+
+                    // gets the type of the enitity
+                    let type;
+                    if (entity["ItemProcessor"] != null) {
+                        type = entity["ItemProcessor"]["type"];
+                    } else if (entity["UndergroundBelt"] != null) {
+                        type = entity["UndergroundBelt"]["mode"];
+                    } else if (entity["Miner"] != null) {
+                        type = "Miner";
+                    } else if (entity["Belt"]) {
+                        type = "Belt";
+                    } else {
+                        throw new Error("no registered Entity");
+                    }
+
+                    //pushs components to an array
+                    entityList.push(type);
+                    entityList.push(xTile);
+                    entityList.push(yTile);
+                    entityList.push(rotation);
+                    entitiesList.push(entityList);
+                }
+                return entitiesList;
             }
 
             function extractRelevantDataGoal(goal) {
                 return {
-                    definiton: goal.definition,
+                    cachedHash: goal.definition.cachedHash,
                     required: goal.required,
                 };
             }
 
-            function extractRelevantDataMap(map) {
-                return {
-                    contents: map.contents,
-                    lowerLayer: map.lowerLayer,
-                    patches: map.patches,
-                    tileSpaceRectangle: map.tileSpaceRectangle,
-                    tileX: map.tileX,
-                    tileY: map.tileY,
-                    worldSpaceRectangle: map.worldSpaceRectangle,
-                    x: map.x,
-                    y: map.y,
-                };
+            // calculates each resource position and puts it in a dictionary
+            function calculateResourcePosition(map, dict) {
+                // Goes through lower layer array and gets a resource
+                for (let i = 0; i < 16; ++i) {
+                    for (let j = 0; j < 16; ++j) {
+                        // select a tile within the chunk
+                        var resource = map["lowerLayer"][i][j];
+
+                        // stores type and position of resource
+                        if (resource instanceof shapez.ColorItem) {
+                            let temp = [];
+                            let filtered_colour = resource["color"];
+                            temp.push(filtered_colour);
+                            temp.push(i + map["tileX"]);
+                            temp.push(j + map["tileY"] - 1);
+                            // tryPlaceSimpleBuilding(
+                            //     root,
+                            //     shapez.MetaMinerBuilding,
+                            //     i + map["tileX"],
+                            //     j + map["tileY"]
+                            // );
+                            dict.push(temp);
+                        } else if (resource instanceof shapez.ShapeItem) {
+                            let temp = [];
+                            let filtered_shape = resource["definition"]["cachedHash"];
+                            temp.push(filtered_shape);
+                            temp.push(i + map["tileX"]);
+                            temp.push(j + map["tileY"]);
+                            // tryPlaceSimpleBuilding(
+                            //     root,
+                            //     shapez.MetaMinerBuilding,
+                            //     i + map["tileX"],
+                            //     j + map["tileY"]
+                            // );
+
+                            dict.push(temp);
+                        }
+                    }
+                }
+                return dict;
             }
 
             // TODO: Chunks or map?
@@ -130,43 +182,44 @@ class Mod extends shapez.Mod {
 
             // Process State
             if (gameState["key"] == "InGameState") {
-                var newGameState = [];
+                // Contains three arrays 1. Entities 2. hub goal 3. resources
+                var filteredGameState = [];
 
-                // 1. Extract Entities
-                simpleNotification(root, "Extracting Entities...")
+                // 1. Extract Entities [Type, X (Tile), Y (Tile), Rotation]
+                simpleNotification(root, "Extracting Entities...");
                 var entity_list = [];
                 var entities = gameState["core"]["root"]["entityMgr"]["entities"];
-                for (let i = 0; i < entities.length; i++) {
-                    let new_entity = extractRelevantDataEntity(entities[i]);
-                    entity_list.push(new_entity);
-                }
-                newGameState.push(entity_list);
 
-                // 2. Extract Goals
-                simpleNotification(root, "Extracting Goals...")
+                entity_list = extractRelevantColumnsEntity(entities);
+                filteredGameState.push(entity_list);
+
+                // 2. Extract Goals [Goal ID of shape, required amount]
+                simpleNotification(root, "Extracting Goals...");
                 var goal = gameState["core"]["root"]["hubGoals"]["currentGoal"];
-                let transfferedGoal = extractRelevantDataGoal(goal);
-                newGameState.push(transfferedGoal);
+                let transfferedGoal = [];
+                transfferedGoal.push(goal["definition"]["cachedHash"]);
+                transfferedGoal.push(goal["required"]);
+                filteredGameState.push(transfferedGoal);
 
-                // 3. Extract Map
-                simpleNotification(root, "Extracting Map Features...")
+                // 3. Extract Map [type, X (Tile), Y (Tile)]
+                simpleNotification(root, "Extracting Map Features...");
                 var mapChunkList = [];
                 var map = gameState["core"]["root"]["map"]["chunksById"];
+                let dict = [];
                 for (const [key, value] of map) {
-                    let dict = {};
-                    dict[key] = extractRelevantDataMap(value);
-                    mapChunkList.push(dict);
+                    dict = calculateResourcePosition(value, dict);
                 }
-                newGameState.push(mapChunkList);
+                mapChunkList.push(dict);
 
+                filteredGameState.push(mapChunkList);
+
+                console.log(filteredGameState);
                 // Send test package to Python Backend
-                simpleNotification(root, "Querying AI Model...")
-                var test = sendGameStateToPythongameState(newGameState);
-                simpleNotification(root, "AI Model Query Complete")
-                console.log(test);
+                simpleNotification(root, "Querying AI Model...");
+                var test = sendGameStateToPythongameState(filteredGameState);
+                simpleNotification(root, "AI Model Query Complete");
             }
         }
-
 
         /**
          * Receives a signal from the python backend.
@@ -175,7 +228,7 @@ class Mod extends shapez.Mod {
          * @returns {type} None
          */
         function receive_signal() {
-            return
+            return;
         }
 
         /**
