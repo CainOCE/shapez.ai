@@ -274,6 +274,3 @@ def rhys_model():
 
 if __name__ == "__main__":
     print("Please call this module as a dependency or import.")
-
-
-rhys_model()

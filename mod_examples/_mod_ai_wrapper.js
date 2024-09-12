@@ -9,11 +9,15 @@ const METADATA = {
     minimumGameVersion: ">=1.5.0",
 };
 
+// async function hotkey(root) {
+//     const response = await makeCall(...);
+//     placeBuildings(root, response);
+// }
 
 class Mod extends shapez.Mod {
     init() {
         console.log("Shapez.ai Module Initialized");
-
+        console.log("root:", this.root);
 
         // Sandbox Mode
         this.modInterface.replaceMethod(shapez.Blueprint, "getCost", function () {
@@ -24,13 +28,36 @@ class Mod extends shapez.Mod {
         });
 
 
-        /* Calls a custom event when keybind is pressed. */
-        function custom_event() {
-            this.dialogs.showInfo("Mod Message", "It worked!");
-            // this.root.hud.signals.notification.dispatch(
-            //     "It worked!",
-            //     shapez.enumNotificationType.info
-            // );
+        /**
+         * Simplifies the inbuilt tryPlaceBuilding Method
+         *
+         * @param {MetaBuilding} building class of MetaBuilding to place
+         * @param {number} X offset
+         * @param {number} y offsetparam0.rotation
+         * @returns {Entity}
+         */
+        function tryPlaceSimpleBuilding(root, building, x, y) {
+            console.log("root: ", root)
+            return root.logic.tryPlaceBuilding({
+                origin: new shapez.Vector(x, y),
+                building: shapez.gMetaBuildingRegistry.findByClass(
+                    building
+                ),
+                originalRotation: 0,
+                rotation: 0,
+                variant: "default",
+                rotationVariant: 0,
+            });
+        }
+
+
+        /* Simplifies the notification system. */
+        function simpleNotification(root, msg) {
+            // Display a message when called
+            root.hud.signals.notification.dispatch(
+                msg,
+                shapez.enumNotificationType.info
+            );
         }
 
 
@@ -43,46 +70,15 @@ class Mod extends shapez.Mod {
                 shift: true,
             },
             handler: root => {
-                //TODO: Fix the custom event to fire.
-                //custom_event();
-                this.dialogs.showInfo("Mod Message", "It worked!");
+                // TEST Ryan: Place belt and extractor
+                // simpleNotification(root, "Ryan's Placement Test")
+                // var u = tryPlaceSimpleBuilding(root, shapez.MetaBeltBuilding, 3, 4)
+                // var v = tryPlaceSimpleBuilding(root, shapez.MetaMinerBuilding, 3, 5)
+
+                transform_data(root)
                 return shapez.STOP_PROPAGATION;
             },
         });
-
-
-        /**
-         * Places a building of type at x, y
-         *
-         * @param {type} buildingType - Shapez.Meta{*}Building Type
-         * @param {type} x - Horizontal Map Position, Left to Right
-         * @param {type} y - Vertical Map Position, Top to Bottom
-         * @returns {type} None
-         */
-        function place_building(buildingType, x, y) {
-
-            console.dir(buildingType)
-
-            // Define a building to be placed
-            const building = shapez.gMetaBuildingRegistry.findByClass(buildingType).createEntity({
-                root: shapez,
-                origin: new shapez.Vector(x, y),
-                rotation: 0,
-                originalRotation: 0,
-                rotationVariant: 0,
-                variant: "default",
-            });
-
-            // Add new building to appropriate lists.
-            shapez.BaseMap.placeStaticEntity(building);
-            shapez.EntityManager.registerEntity(building);
-        }
-
-        // console.dir(root)
-        console.dir(shapez)
-        // Ryan: Place belt and extractor
-        // place_building(shapez.MetaBeltBuilding, 3, 4);
-        place_building(shapez.MetaMinerBuilding, 3, 5);
 
 
         /**
@@ -91,8 +87,10 @@ class Mod extends shapez.Mod {
          * @param {type} gameState - Shapez.__
          * @returns {type} None
          */
-        function transform_data(gameState) {
+        function transform_data(root) {
+            var gameState = root.gameState;
             if (gameState == null) { return; }  // Guard Clause
+            simpleNotification(root, "Gathering gameState...")
 
             // TODO:  Can this process/strategy be simplified?
             function extractRelevantDataEntity(entity) {
@@ -126,7 +124,7 @@ class Mod extends shapez.Mod {
             // TODO: Chunks or map?
             /**
              * depends how we want to do it but it might be easier
-             * to work per chunck, we can get entities perchuck in the map
+             * to work per chunk, we can get entities per chunk in the map
              * gamestate if need
              */
 
@@ -135,31 +133,36 @@ class Mod extends shapez.Mod {
                 var newGameState = [];
 
                 // 1. Extract Entities
+                simpleNotification(root, "Extracting Entities...")
                 var entity_list = [];
                 var entities = gameState["core"]["root"]["entityMgr"]["entities"];
                 for (let i = 0; i < entities.length; i++) {
-                    let new_entity = this.extractRelevantDataEntity(entities[i]);
+                    let new_entity = extractRelevantDataEntity(entities[i]);
                     entity_list.push(new_entity);
                 }
-                //newGameState.push(entity_list);
+                newGameState.push(entity_list);
 
                 // 2. Extract Goals
+                simpleNotification(root, "Extracting Goals...")
                 var goal = gameState["core"]["root"]["hubGoals"]["currentGoal"];
-                let transfferedGoal = this.extractRelevantDataGoal(goal);
+                let transfferedGoal = extractRelevantDataGoal(goal);
                 newGameState.push(transfferedGoal);
 
                 // 3. Extract Map
+                simpleNotification(root, "Extracting Map Features...")
                 var mapChunkList = [];
                 var map = gameState["core"]["root"]["map"]["chunksById"];
                 for (const [key, value] of map) {
                     let dict = {};
-                    dict[key] = this.extractRelevantDataMap(value);
+                    dict[key] = extractRelevantDataMap(value);
                     mapChunkList.push(dict);
                 }
-                //newGameState.push(mapChunckList);
+                newGameState.push(mapChunkList);
 
                 // Send test package to Python Backend
-                var test = await sendGameStateToPython(newGameState);
+                simpleNotification(root, "Querying AI Model...")
+                var test = sendGameStateToPythongameState(newGameState);
+                simpleNotification(root, "AI Model Query Complete")
                 console.log(test);
             }
         }
