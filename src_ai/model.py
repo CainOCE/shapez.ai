@@ -147,6 +147,11 @@ def rhys_model():
     # Using huber loss for stability
     loss_function = keras.losses.Huber()
 
+    def train():
+        while True:
+            pass
+        return
+
     while True:
         observation, _ = env.reset()
         state = np.array(observation)
@@ -174,6 +179,9 @@ def rhys_model():
 
             # Apply the sampled action in our environment
             state_next, reward, done, _, _ = env.step(action)
+            if reward > 0 or done:
+                print(reward)
+                print(done)
             state_next = np.array(state_next)
 
             episode_reward += reward
