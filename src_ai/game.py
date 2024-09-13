@@ -3,53 +3,125 @@ from gym import spaces
 import numpy as np
 import copy
 
-"""
-set up game in simple version like gym
-- need a step function
--
-"""
 
-"""
-if we could make a simple python copy of the game could be useful... idk discuss w others
+#if we could make a simple python copy of the game could be useful... idk discuss w others
 
-during training will we require the chrome to be running, will make training super slow
-this is a where our version of the game could run much faster
+#during training will we require the chrome to be running, will make training super slow
+#this is a where our version of the game could run much faster
 
-save model at end??
+#simplify as much as possible:
+# Entities
+# 0 - empty/delete
+# 1 - HUB
+# 2 - extractor
+# 3 - belt_up
+# 4 - belt_down
+# 5 - belt_left
+# 6 - belt_right
+# 7 - splitter
+#
+# Resources (different list) -- layering???
+# crcrcrcr - circle
+# etc.
 
-simplify as much as possible:
-- extractors (1)
-- belts (2)
-- resource (-1, -2, -3, -4) -- or maybe some hash code like describing the products
-- HUB (3)
-- empty (0)
+# QUESTIONS
+# is it possible to delete a resource?
+#
 
-"""
+ # pre made list since goals always remain the same
+ # this way we can also make more very simple goals for basic training
+goals = [{'crcrcrcr':10, 'abx':5}, # 1
+         {'srsrsrsr': 20}, # 2
+         ]
 
-goals = [] # pre made list since goals always remain the same
-
-
+ # communicator??
 class shapezGym():
 
-    def __init__(self, buildings):
+    def __init__(self, buildings, level=0):
 
         self.buildings = buildings # dictionary of buildings and a given index
-        self.num_actions = len(buildings.keys()) # number of possible values of each cell
-        self.action_map = {0:'empty', 1: 'belt'}
+        self.num_actions = len(buildings) # number of possible values of each cell
+        self.action_map = {'empty':0, 'belt':1}
 
         self.goals = {} # array of goals
-        self.level = 0 # start at level one
-        self.state = self.reset() # get game state
+
+        self.level = level # start at level given, if not level 1
+        # initial game for first time
+        self.resource_map = {} # make map of resources
+        self.state = None
+        self.seed = 0
+        _, _, _ = self.reset()
+
+
+
         self.size = self.state[0] # size of array -- make sure the game is square
 
+        self.layer2 = np.zeros_like(self.state) # upper layer so buildings will go on here
+
+        self.shapes_produced = {} # will contain all shapes produced, only increase
 
 
-        self.shapes_produced = {}
+    def reset(self):
+        '''
+        reset game to new start with different seed
+        update goals to initial goals
+        return:
+            - seed
+            - starting state
+        '''
+        seed = 0 # need to call from game
+        string_state = [['belt', 'empty'], ['crcrcr', 'empty']] # example
+        # need to call from game
+        # state like (square is preferable)
+        #  '  empty ', '  empty ', ...
+        #  'crcrcrcr', ...
+        #  'crcrcrcr',
+        #     ...
+        # like how ryan had found them
+        self.resource_map = {x: hash(x) for x in self.get_resources(string_state)}
+        print(self.resource_map)
+        self.state = self.encode_state(string_state)
+        # make numerical state from string_state
+        # was thinking we make the value of a state a running count, so then layers could
+        # somewhat be considered
 
-        self.observation_space = spaces.Box(0, self.num_actions, (self.size, self.size))
-        self.action_space = spaces.Discrete(self.size**2 * self.num_actions)
 
 
+        self.goals.clear() # remove all old goals
+        self.goals.update(goals[self.level]) # add initial level
+
+        return self.seed, self.state, self.resources
+
+    def encode_state(self, string_state):
+        state = np.zeros_like(string_state, dtype=float)
+        for i in range(len(string_state)):
+            for j in range(len(string_state[0])):
+                value = string_state[i][j]
+                # if in actions
+                state[i][j] = self.action_map[value]
+                # else get from resources
+                state[i][j] = self.resource_map[value]
+        return state
+
+    # forgot why i thought this method would be useful but ive made it now
+    # no useful for separating actions from resources in the available actions
+    #
+    def get_resources(self, state):
+        resources = []
+        for i in range(len(state)):
+            for j in range(len(state[0])):
+                if state[i][j] not in self.action_map.keys():
+                    resources.append((i, j, state[i][j]))
+        return resources
+
+    # so only give minimum options for each square for simplicity
+    # so:
+    # empty square - place belt*8/building --- problem with defining belts
+    # resource - place extractor
+    # belt or building - delete
+    #
+    # need to thikn more about how to think about belts?
+    # i think will promote placing down lots of belts tho which will be beneficial
     def get_possible_moves(self, state):
         # to be implemented
         actions = set()
@@ -58,7 +130,7 @@ class shapezGym():
         for i in state:
             for j in state[0]:
                 cell_val = state[i][j] # get value of cell (i, j)
-
+                # map to action
                 if self.action_map[cell_val] == 'empty':
                     actions.add((i, j, 1)) # add belt
                 if cell_val == 'resource':
@@ -66,19 +138,12 @@ class shapezGym():
 
         return actions
 
-    """
-
-    """
     def check_produced(self):
 
         product = None
         return product
 
-    """
-
-    """
     def update_goal(self, product):
-
         # minus from product goal if desired product
         if product in self.goals.keys():
             self.goals.update({product: self.goals.get(product) - 1})
@@ -98,20 +163,6 @@ class shapezGym():
         self.level += 1
         for goal in goals[self.level]:
             self.goals.update({goal}) # may need to tweak how goals is setup
-
-
-
-
-    def reset(self):
-        '''
-        reset game to new start with different seed
-        update goals to initial goals
-        return:
-            - seed
-            - starting state
-        '''
-        self.goals.clear() # remove all old goals
-        return 0, np.array((2, 2))
 
 
     def step(self, action):
@@ -143,6 +194,8 @@ class shapezGym():
         return self.state, reward
 
 
+
+test = shapezGym(['belt', 'empty'])
 
 
 

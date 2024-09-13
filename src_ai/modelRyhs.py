@@ -1,13 +1,11 @@
 import os
 import keras
-import gymnasium
 import numpy as np
 import tensorflow as tf
 from game import shapezGym
 import time
 
 from keras import layers
-from gymnasium.wrappers import AtariPreprocessing, FrameStack
 
 os.environ["KERAS_BACKEND"] = "tensorflow"
 
@@ -64,6 +62,7 @@ model framework, initialise layers and weights
 """
 def create_q_model():
     # Network defined by the Deepmind paper
+    ## start with this standard model, look to change in future after testing
     return keras.Sequential(
         [
             layers.Lambda(
