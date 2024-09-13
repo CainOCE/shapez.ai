@@ -26,44 +26,28 @@ simplify as much as possible:
 
 """
 
-class shapezGym(gym.Env):
+goals = [] # pre made list since goals always remain the same
 
-    # buildings is some dictionary like
-    # {0: "empty", 1: "HUB", 2: "EXTRACTOR", ...}
-    # account for resources
-    # -1 --> triangle
-    # -2 --> square
 
-    # need some way of passing goal information into program at each state
-    # could pre program in goals if they are always the same
-    # goals = [(("triangles", 10)), ... (("half-circle-half-sqaure", 10))]
-    # unless find this information in the soruce code, probably more realistic
+class shapezGym():
 
-    # TODO:
-    # 1. encode products (likely some like hex/hash number describing all possible products)
-    #       - 1crcrcrcr -- red circle, idk just example
-    # 2. write code to check if something was produced since last action -- kind of links with idea below
-    # 3. find a way to account for which state gets reward added, given products take
-    #    some time to arrive at HUB --- may cause slight misoptimisation
-    #       - even better if we could have a list of products currently on belt
-    #       - then another check to see what hits HUB
-
-    def __init__(self, buildings, size, state, goals):
+    def __init__(self, buildings):
 
         self.buildings = buildings # dictionary of buildings and a given index
-        self.size = size # side length of the "board", centre around the HUB
-        self.goals = goals # dictionary containing the goals of the game (or some small subset of goals)
         self.num_actions = len(buildings.keys()) # number of possible values of each cell
-        self.state = state
         self.action_map = {0:'empty', 1: 'belt'}
 
-        self.shapes_produced = {}
-        # example from chess
-        #self.observation_space = spaces.Box(-16, 16, (8, 8))  # board 8x8
-        #self.action_space = spaces.Discrete(64 * 16 + 4)
+        self.goals = {} # array of goals
+        self.level = 0 # start at level one
+        self.state = self.reset() # get game state
+        self.size = self.state[0] # size of array -- make sure the game is square
 
-        self.observation_space = spaces.Box(0, self.num_actions, (size, size))
-        self.action_space = spaces.Discrete(size**2 * self.num_actions)
+
+
+        self.shapes_produced = {}
+
+        self.observation_space = spaces.Box(0, self.num_actions, (self.size, self.size))
+        self.action_space = spaces.Discrete(self.size**2 * self.num_actions)
 
 
     def get_possible_moves(self, state):
@@ -73,7 +57,8 @@ class shapezGym(gym.Env):
         ### needs to be implemented
         for i in state:
             for j in state[0]:
-                cell_val = state[i][j]
+                cell_val = state[i][j] # get value of cell (i, j)
+
                 if self.action_map[cell_val] == 'empty':
                     actions.add((i, j, 1)) # add belt
                 if cell_val == 'resource':
@@ -81,76 +66,81 @@ class shapezGym(gym.Env):
 
         return actions
 
+    """
 
+    """
     def check_produced(self):
-        # check if anything has reached the HUB
-        # alternatviely, check what is currently on belts
 
-        # return some product or None
         product = None
         return product
 
+    """
 
+    """
     def update_goal(self, product):
 
         # minus from product goal if desired product
-        if self.goals.keys.contains(product):
+        if product in self.goals.keys():
             self.goals.update({product: self.goals.get(product) - 1})
 
             # if zero more required, remove
             if self.goals.get(product) == 0:
                 self.goals.pop(product)
+                return True # goal is completed
+            return False
+        return False
 
     # update the goals because all previous goals have been met
     # maybe even smarter to do this in 2 or 3 level batches???
-    def update_goals(self, new_goals):
+    def update_goals(self):
 
-        for goal in new_goals: # list of goals to be added
-            self.goals.update(goal)
+        self.goals.clear()
+        self.level += 1
+        for goal in goals[self.level]:
+            self.goals.update({goal}) # may need to tweak how goals is setup
 
-    def reset():
-        # reset to a new game -- maybe just one button press
-        # and return new fresh state
-        pass
 
-    def step(self, action, state):
-        # action should already be legal
+
+
+    def reset(self):
+        '''
+        reset game to new start with different seed
+        update goals to initial goals
+        return:
+            - seed
+            - starting state
+        '''
+        self.goals.clear() # remove all old goals
+        return 0, np.array((2, 2))
+
+
+    def step(self, action):
+        '''
+        make one "step" through the game environment given an action
+
+        return:
+            - new state
+            - reward (reward for being in this state)
+            - reached
+        '''
 
         i, j, m = action
-        state[i][j] = m
+        self.state[i][j] = m # update state
         reward = 0
         reached = False
 
         produced = self.check_produced()
         if produced in self.goals.keys():
-            ## this wont reward properly as it will reward some state some number of actions
-            ## after the last building placed was involved
-            ## in bad cases this will negatively reward model
-            ## eg. 1. product travelling to HUB
-            #      2. belt behind product is deleted
-            #      3. no more product can come through
-            #      4. but first state after product gets to HUB gets reward
 
-            # could reduce probability of deleting belt,
-            # or increase probability of doing action in a free space?
-
-            ######
-            # not sure how to officially solve this without manually checking a
-            # path still exists. seems slow
-            #
-            # the case described above will be rareish, at least for small factory
-            # relative to size -- should lead to minimal loss in factory as wont result
-            #                     in rewards for prolonged time
-            ####
-
-            # if thing has reach the HUB --> update_goal
-            self.update_goal(produced)
+            reached = self.update_goal(produced)
 
             # cehck if goal was completed this step
-
+            if reached and len(self.goals) == 0:
+                reward += 5 # big reward for completing a level
+                self.update_goals()
             reward += 1 # just add one if something produced is in goals
 
-        return state, reward, reached
+        return self.state, reward
 
 
 
