@@ -4,6 +4,7 @@ import gymnasium
 import numpy as np
 import tensorflow as tf
 from game import shapezGym
+import time
 
 from keras import layers
 from gymnasium.wrappers import AtariPreprocessing, FrameStack
@@ -21,8 +22,6 @@ epsilon_interval = (
 batch_size = 32  # Size of batch taken from replay buffer
 max_steps_per_episode = 10000
 max_episodes = 10  # Limit training episodes, will run until solved if smaller than 1
-
-model_target = create_q_model()
 
 optimiser = keras.optimizers.Adam(learning_rate=0.0001)
 
@@ -49,8 +48,6 @@ update_after_actions = 4
 update_target_network = 10000
 # Using huber loss for stability
 loss_function = keras.losses.Huber()
-# training check
-trained = False
 # buildings available to place in game -- start simple
 buildings = ['empty', 'belt', 'extractor']
 # environment for game
@@ -88,21 +85,26 @@ def create_q_model():
 saves the given model to a text file
 """
 def save_model(model):
-    pass
+    model.save('model'+str(time.time())+'.h5')
 
 """
 loads the given text file into a model
 """
 def load_model(file):
-    pass
+    return load_model(file)
 
 """
 save history of actions to a text file
 
 for reproducibility and visualisation later
 """
-def save_actions(actions_history):
-    pass
+def save_actions(seed, actions_history):
+    fileName = "actions" + str(time.time()) + ".txt"
+    file = open(fileName, 'w')
+    file.write(str(seed) + "\n")
+    for a in actions_history:
+        file.write(str(a) + "\n")
+    file.close()
 
 
 """
@@ -117,23 +119,25 @@ def check_completion():
     if (max_episodes > 0 and episode_count >= max_episodes):  # Maximum number of episodes reached
             print("Stopped at episode {}!".format(episode_count))
 
+
 """
 instatiation and training of model
 
 based on a "homemade" environemnt of shapez defined in game.py shapezGym class
 """
-def bob(actions):
-
+def bob():
     # actions -- a dictionary containing valid actions
 
     model = create_q_model() # training model????
     model_target = create_q_model() # testing model????
-    num_actions = len(actions)
+    num_actions = game.action_space # a gym.Discrete class
+
+    ## do we want observatino space to the be the gym.Box class???
 
     # train model
-    while not trained:
+    while not check_completion:
         ## restart game -- fresh start of training episode
-        current_state = game.reset() # could make this reset to higher level for different training?
+        seed, current_state = game.reset() # could make this reset to higher level for different training?
         episode_reward = 0
 
         for timestep in range(1, max_steps_per_episode):
@@ -155,7 +159,7 @@ def bob(actions):
             epsilon = max(epsilon, epsilon_min)
 
             # Apply the sampled action in our environment
-            state_next, reward, goal_reached = game.step(action, current_state)
+            state_next, reward, goal_reached = game.step(action)
             ##### need to finish game environment
 
             state_next = np.array(state_next)
@@ -234,12 +238,11 @@ def bob(actions):
 
         episode_count += 1
 
-        if check_completion:
-            save_model(model)
-            save_model(model_target)
-            save_acions(action_history) # will only save
-            trained = True
-            break
+    # training done -- save models, save action history
+    save_model(model)
+    save_model(model_target)
+    save_actions(seed, action_history) # will only save
+
 
 
 
@@ -247,4 +250,4 @@ if __name__ == "__main__":
     print("Please call this module as a dependency or import.")
 
 
-bob(actions)
+bob()
