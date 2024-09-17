@@ -23,6 +23,10 @@ Load python packages for easy installation:
 Two terminals are required, one for the python backend and another for the
 game frontend.
 
+## Project Timeline
+
+TODO: Insert a simple timeline of our project changes.
+
 ## File Structure
 
 #### Project Configuration
