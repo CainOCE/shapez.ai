@@ -75,7 +75,10 @@ class Mod extends shapez.Mod {
                 // var u = tryPlaceSimpleBuilding(root, shapez.MetaBeltBuilding, 3, 4)
                 // var v = tryPlaceSimpleBuilding(root, shapez.MetaMinerBuilding, 3, 5)
 
-                transform_data(root)
+                // Send a move request to the python backend.
+                // var gameState = getGameState(root)
+                backendRequest(root, "Hello");
+
                 return shapez.STOP_PROPAGATION;
             },
         });
@@ -87,7 +90,7 @@ class Mod extends shapez.Mod {
          * @param {type} gameState - Shapez.__
          * @returns {type} None
          */
-        function transform_data(root) {
+        function getGameState(root) {
             var gameState = root.gameState;
             if (gameState == null) { return; }  // Guard Clause
             simpleNotification(root, "Gathering gameState...")
@@ -133,7 +136,7 @@ class Mod extends shapez.Mod {
                 var newGameState = [];
 
                 // 1. Extract Entities
-                simpleNotification(root, "Extracting Entities...")
+                simpleNotification(root, " -> Extracting Entities...")
                 var entity_list = [];
                 var entities = gameState["core"]["root"]["entityMgr"]["entities"];
                 for (let i = 0; i < entities.length; i++) {
@@ -143,13 +146,13 @@ class Mod extends shapez.Mod {
                 newGameState.push(entity_list);
 
                 // 2. Extract Goals
-                simpleNotification(root, "Extracting Goals...")
+                simpleNotification(root, " -> Extracting Goals...")
                 var goal = gameState["core"]["root"]["hubGoals"]["currentGoal"];
                 let transfferedGoal = extractRelevantDataGoal(goal);
                 newGameState.push(transfferedGoal);
 
                 // 3. Extract Map
-                simpleNotification(root, "Extracting Map Features...")
+                simpleNotification(root, " -> Extracting Map Features...")
                 var mapChunkList = [];
                 var map = gameState["core"]["root"]["map"]["chunksById"];
                 for (const [key, value] of map) {
@@ -159,24 +162,11 @@ class Mod extends shapez.Mod {
                 }
                 newGameState.push(mapChunkList);
 
-                // Send test package to Python Backend
-                simpleNotification(root, "Querying AI Model...")
-                var test = sendGameStateToPythongameState(newGameState);
-                simpleNotification(root, "AI Model Query Complete")
-                console.log(test);
+                simpleNotification(root, "Packaged gameState.")
+                return newGameState;
             }
         }
 
-
-        /**
-         * Receives a signal from the python backend.
-         *
-         * @param {type} gameState - Shapez.__
-         * @returns {type} None
-         */
-        function receive_signal() {
-            return
-        }
 
         /**
          * Sends a gameState obj to the python backend.
@@ -184,20 +174,39 @@ class Mod extends shapez.Mod {
          * @param {type} gameState - Shapez.__
          * @returns {type} None
          */
-        async function sendGameStateToPythongameState(gameState) {
-            try {
-                const response = await fetch("http://127.0.0.1:5000/process", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({ game_state: gameState }),
+        async function backendRequest(root, gameState) {
+            simpleNotification(root, "Querying AI Model...")
+            var request = await fetch("http://127.0.0.1:5000/process", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ game_state: gameState }),
+            })
+                .then((response) => response.json())
+                .then((data) => {
+                    console.log(data);
                 });
-                const data = await response.json();
-                return data.move;
-            } catch (error) {
-                console.error("Error:", error);
-            }
         }
+
+
+        /* Places a ghost entity at the desired location */
+        function addGhostEnitities() {
+            // TODO: Place a ghost entity at the desired location.
+        }
+
+
+        /* Removes a single ghost entity. */
+        function removeGhostEntities() {
+            //TODO:  Removes a single ghost entity
+        }
+
+
+        /* Clears all ghost entities on the screen. */
+        function clearGhostEntities() {
+            // TODO:  Remove ALL ghost entities.
+        }
+
+
     }
 }
