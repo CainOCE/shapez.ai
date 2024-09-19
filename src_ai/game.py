@@ -2,6 +2,7 @@ import gymnasium as gym
 from gym import spaces
 import numpy as np
 import copy
+from signals import ListenServer
 
 
 #if we could make a simple python copy of the game could be useful... idk discuss w others
@@ -18,7 +19,8 @@ import copy
 # 4 - belt_down
 # 5 - belt_left
 # 6 - belt_right
-# 7 - splitter
+# ... more belts (12 total types)
+# X - splitter
 #
 # Resources (different list) -- layering???
 # crcrcrcr - circle
@@ -34,14 +36,23 @@ goals = [{'crcrcrcr':10, 'abx':5}, # 1
          {'srsrsrsr': 20}, # 2
          ]
 
+# NEEDS:
+#   - way to restart game with new seed (tbd in reset())
+#   - way to make action happen (step()) -- return new game state given a state and action
+#   - way to check if anything has been produced (in check_produced())
+
+
  # communicator??
 class shapezGym():
 
     def __init__(self, buildings, level=0):
 
-        self.buildings = buildings # dictionary of buildings and a given index
-        self.num_actions = len(buildings) # number of possible values of each cell
-        self.action_map = {'empty':0, 'belt':1}
+        # make action map
+        self.action_map = {
+            'empty': 0,
+            'extractor': 1
+        }
+        self.num_actions = len(self.action_map) # number of possible values of each cell
 
         self.goals = {} # array of goals
 
@@ -52,14 +63,13 @@ class shapezGym():
         self.seed = 0
         _, _, _ = self.reset()
 
-
-
         self.size = self.state[0] # size of array -- make sure the game is square
 
         self.layer2 = np.zeros_like(self.state) # upper layer so buildings will go on here
 
         self.shapes_produced = {} # will contain all shapes produced, only increase
 
+        self.communicator = ListenServer()
 
     def reset(self):
         '''
@@ -70,6 +80,10 @@ class shapezGym():
             - starting state
         '''
         seed = 0 # need to call from game
+
+        #idk something like
+        # self.communicator.receive()
+
         string_state = [['belt', 'empty'], ['crcrcr', 'empty']] # example
         # need to call from game
         # state like (square is preferable)
@@ -116,7 +130,7 @@ class shapezGym():
 
     # so only give minimum options for each square for simplicity
     # so:
-    # empty square - place belt*8/building --- problem with defining belts
+    # empty square - place belt*12/building --- problem with defining belts
     # resource - place extractor
     # belt or building - delete
     #
@@ -194,8 +208,7 @@ class shapezGym():
         return self.state, reward
 
 
-
-test = shapezGym(['belt', 'empty'])
+test = shapezGym()
 
 
 

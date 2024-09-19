@@ -36,7 +36,7 @@ frame_count = 0
 # Number of frames to take random action and observe output
 epsilon_random_frames = 50000
 # Number of frames for exploration
-epsilon_greedy_frames = 1000000.0
+epsilon_greedy_frames = 1000000
 # Maximum replay length
 # Note: The Deepmind paper suggests 1000000 however this causes memory issues
 max_memory_length = 100000
@@ -51,7 +51,8 @@ buildings = ['empty', 'belt', 'extractor']
 # environment for game
 game = shapezGym(buildings)
 # available actions for model
-actions = game.action_space #
+# FIND THIS
+actions = None
 
 
 ####
@@ -129,9 +130,7 @@ def bob():
 
     model = create_q_model() # training model????
     model_target = create_q_model() # testing model????
-    num_actions = game.action_space # a gym.Discrete class
-
-    ## do we want observatino space to the be the gym.Box class???
+    num_actions = len(actions)
 
     # train model
     while not check_completion:
