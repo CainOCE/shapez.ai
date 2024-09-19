@@ -173,6 +173,7 @@ export class GameCore {
         logger.log("Initializing new game");
         this.root.gameIsFresh = true;
         this.root.map.seed = randomInt(0, 100000);
+        console.log("bryan", this.root.map.seed);
 
         if (!this.root.gameMode.hasHub()) {
             return;
@@ -369,6 +370,7 @@ export class GameCore {
     }
 
     draw() {
+        //console.log(this.root);
         const root = this.root;
         const systems = root.systemMgr.systems;
 

@@ -417,7 +417,9 @@ export class ModInterface {
      * @param {typeof import("../core/game_state").GameState} stateClass
      */
     registerGameState(stateClass) {
+        console.log(stateClass);
         this.modLoader.app.stateMgr.register(stateClass);
+        console.log(2);
     }
 
     /**

@@ -93,6 +93,7 @@ export class InGameState extends GameState {
      * @param {string} stage
      */
     switchStage(stage) {
+        console.log(stage, "baby come back");
         assert(stage, "Got empty stage");
         if (stage !== this.stage) {
             this.stage = stage;
@@ -164,6 +165,7 @@ export class InGameState extends GameState {
             backToStateId: this.key,
             backToStatePayload: this.creationPayload,
         });
+        console.log("kkk");
     }
 
     /**

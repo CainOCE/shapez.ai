@@ -74,6 +74,7 @@ export class Application {
         logger.log("Creating application, platform =", getPlatformName());
         setGlobalApp(this);
         MODS.app = this;
+        console.log(9999999);
 
         // MODS
 
@@ -170,7 +171,6 @@ export class Application {
         this.ticker.start();
 
         window.focus();
-        console.log(globalConfig.tileSize);
         MOD_SIGNALS.appBooted.dispatch();
     }
 

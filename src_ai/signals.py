@@ -16,6 +16,7 @@ class ListenServer:
         CORS(self.app)
         self._routing()
         self.alive = False
+        self.ryan = []
 
     def _routing(self):
 
@@ -57,11 +58,13 @@ class ListenServer:
 
     def receive(self, data_in):
         """ Handles incoming signals sent by the game instance. """
-        print(data_in)
+        #print(data_in)
         if data_in and data_in.get("message") == "Hello":
             data_out = "World"
         else:
             data_out = "Unknown"
+        self.ryan.append("miles")
+        print(self.ryan)
         return jsonify({'move': data_out})  # The returned data
 
 

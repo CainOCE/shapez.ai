@@ -60,7 +60,11 @@ let app = null;
 function bootApp() {
     logger.log("Page Loaded");
     app = new Application();
+    console.log(app, "balss");
     app.boot();
+    // var app2 = new Application();
+    // console.log(app, "balss");
+    // app2.boot();
 }
 
 if (G_IS_STANDALONE) {
