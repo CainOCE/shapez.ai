@@ -13,6 +13,35 @@ const METADATA = {
 //     const response = await makeCall(...);
 //     placeBuildings(root, response);
 // }
+// need the list of goals
+// need a way to send the static required amount i dont know if we can because the way we have it at the moment we have it we only send through it once
+// List of shit
+// CuCuCuCu
+// ----CuCu
+// RuRuRuRu
+// RuRU----
+// Cu----Cu
+// Cu------
+// CrCrCrCr
+// RbRb----
+// CpCpCpCp
+// ScScScSc
+// CgScScCg
+// CbCbCbRb:CwCwCwCw
+// RpRpRpRp:CwCwCwCw
+// --Cg----:--Cr----
+// SrSrSrSr:CyCyCyCy
+// SrSrSrSr:CyCyCyCy:SwSwSwSw
+// CbRbRbCb:CwCwCwCw:WbWbWbWb
+// Sg----Sg:CgCgCgCg:--CyCy--
+// CpRpCp--:SwSwSwSw
+// RuCw--Cw:----Ru--
+// CrCwCrCw:CwCrCwCr:CrCwCrCw:CwCrCwCr
+// Cg----Cr:Cw----Cw:Sy------:Cy----Cy
+// CcSyCcSy:SyCcSyCc:CcSyCcSy
+// CcRcCcRc:RwCwRwCw:Sr--Sw--:CyCyCyCy
+// Rg--Rg--:CwRwCwRw:--Rg--Rg
+// CbCuCbCu:Sr------:--CrSrCr:CwCwCwCw
 
 class Mod extends shapez.Mod {
     init() {
@@ -26,6 +55,12 @@ class Mod extends shapez.Mod {
         this.modInterface.replaceMethod(shapez.HubGoals, "isRewardUnlocked", function () {
             return true;
         });
+
+        // save current or quit current game then make a new one wont work as we need the mod laughcher ot stay running ?? or not or do we just need app.py running, can do this way??
+        function newGame(root) {
+            // quits games
+            root.gameState.goBackToMenu();
+        }
 
         /**
          * Simplifies the inbuilt tryPlaceBuilding Method
@@ -68,6 +103,10 @@ class Mod extends shapez.Mod {
                 // var v = tryPlaceSimpleBuilding(root, shapez.MetaMinerBuilding, 3, 5)
 
                 transform_data(root);
+                //NewApplication(root);
+                // softReboot(root);
+                //newGame(root);
+
                 return shapez.STOP_PROPAGATION;
             },
         });
@@ -88,7 +127,7 @@ class Mod extends shapez.Mod {
             // TODO:  Can this process/strategy be simplified?
             function extractRelevantColumnsEntity(entities) {
                 let entitiesList = [];
-
+                let direction = null;
                 for (let i = 0; i < entities.length; i++) {
                     let entityList = [];
                     let entity = entities[i]["components"];
@@ -110,6 +149,7 @@ class Mod extends shapez.Mod {
                         type = "Miner";
                     } else if (entity["Belt"]) {
                         type = "Belt";
+                        direction = entities["Belt"]["direction"];
                     } else {
                         throw new Error("no registered Entity");
                     }
@@ -124,11 +164,14 @@ class Mod extends shapez.Mod {
                 return entitiesList;
             }
 
-            function extractRelevantDataGoal(goal) {
-                return {
-                    cachedHash: goal.definition.cachedHash,
-                    required: goal.required,
-                };
+            function staticGoal(stored, goal, required) {
+                // need a way to not count the ones already in once a level is complete
+                for (let key in stored) {
+                    if (key == goal) {
+                        required -= stored[key];
+                    }
+                }
+                return required;
             }
 
             // calculates each resource position and puts it in a dictionary
@@ -146,12 +189,6 @@ class Mod extends shapez.Mod {
                             temp.push(filtered_colour);
                             temp.push(i + map["tileX"]);
                             temp.push(j + map["tileY"] - 1);
-                            // tryPlaceSimpleBuilding(
-                            //     root,
-                            //     shapez.MetaMinerBuilding,
-                            //     i + map["tileX"],
-                            //     j + map["tileY"]
-                            // );
                             dict.push(temp);
                         } else if (resource instanceof shapez.ShapeItem) {
                             let temp = [];
@@ -159,13 +196,6 @@ class Mod extends shapez.Mod {
                             temp.push(filtered_shape);
                             temp.push(i + map["tileX"]);
                             temp.push(j + map["tileY"]);
-                            // tryPlaceSimpleBuilding(
-                            //     root,
-                            //     shapez.MetaMinerBuilding,
-                            //     i + map["tileX"],
-                            //     j + map["tileY"]
-                            // );
-
                             dict.push(temp);
                         }
                     }
@@ -185,7 +215,7 @@ class Mod extends shapez.Mod {
                 // Contains three arrays 1. Entities 2. hub goal 3. resources
                 var filteredGameState = [];
 
-                // 1. Extract Entities [Type, X (Tile), Y (Tile), Rotation]
+                // 1. Extract Entities [Type, X (Tile), Y (Tile), Rotation, direction]
                 simpleNotification(root, "Extracting Entities...");
                 var entity_list = [];
                 var entities = gameState["core"]["root"]["entityMgr"]["entities"];
@@ -195,8 +225,12 @@ class Mod extends shapez.Mod {
 
                 // 2. Extract Goals [Goal ID of shape, required amount]
                 simpleNotification(root, "Extracting Goals...");
+                var stored = gameState["core"]["root"]["hubGoals"]["storedShapes"];
+                var level = gameState["core"]["root"]["hubGoals"]["level"];
                 var goal = gameState["core"]["root"]["hubGoals"]["currentGoal"];
                 let transfferedGoal = [];
+                var statics = staticGoal(stored, goal["definition"]["cachedHash"], goal["required"]);
+                console.log(statics);
                 transfferedGoal.push(goal["definition"]["cachedHash"]);
                 transfferedGoal.push(goal["required"]);
                 filteredGameState.push(transfferedGoal);
@@ -217,6 +251,7 @@ class Mod extends shapez.Mod {
                 // Send test package to Python Backend
                 simpleNotification(root, "Querying AI Model...");
                 var test = sendGameStateToPythongameState(filteredGameState);
+                console.log(test);
                 simpleNotification(root, "AI Model Query Complete");
             }
         }
