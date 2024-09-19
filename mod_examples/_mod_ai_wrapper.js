@@ -9,10 +9,6 @@ const METADATA = {
     minimumGameVersion: ">=1.5.0",
 };
 
-// async function hotkey(root) {
-//     const response = await makeCall(...);
-//     placeBuildings(root, response);
-// }
 
 class Mod extends shapez.Mod {
     init() {
