@@ -76,8 +76,10 @@ class Mod extends shapez.Mod {
                 // var v = tryPlaceSimpleBuilding(root, shapez.MetaMinerBuilding, 3, 5)
 
                 // Send a move request to the python backend.
-                // var gameState = getGameState(root)
-                backendRequest(root, "Hello");
+                var gameState = getGameState(root)
+                console.dir(gameState)
+                // backendRequest(root, "Hello");
+                backendRequest(root, gameState);
 
                 return shapez.STOP_PROPAGATION;
             },
@@ -91,79 +93,47 @@ class Mod extends shapez.Mod {
          * @returns {type} None
          */
         function getGameState(root) {
+            // TODO: Chunks or map?
             var gameState = root.gameState;
             if (gameState == null) { return; }  // Guard Clause
             simpleNotification(root, "Gathering gameState...")
 
-            // TODO:  Can this process/strategy be simplified?
-            function extractRelevantDataEntity(entity) {
-                return {
-                    components: entity.components,
-                    uid: entity.uid,
-                };
-            }
-
-            function extractRelevantDataGoal(goal) {
-                return {
-                    definiton: goal.definition,
-                    required: goal.required,
-                };
-            }
-
-            function extractRelevantDataMap(map) {
-                return {
-                    contents: map.contents,
-                    lowerLayer: map.lowerLayer,
-                    patches: map.patches,
-                    tileSpaceRectangle: map.tileSpaceRectangle,
-                    tileX: map.tileX,
-                    tileY: map.tileY,
-                    worldSpaceRectangle: map.worldSpaceRectangle,
-                    x: map.x,
-                    y: map.y,
-                };
-            }
-
-            // TODO: Chunks or map?
-            /**
-             * depends how we want to do it but it might be easier
-             * to work per chunk, we can get entities per chunk in the map
-             * gamestate if need
-             */
-
             // Process State
             if (gameState["key"] == "InGameState") {
-                var newGameState = [];
 
                 // 1. Extract Entities
-                simpleNotification(root, " -> Extracting Entities...")
-                var entity_list = [];
-                var entities = gameState["core"]["root"]["entityMgr"]["entities"];
-                for (let i = 0; i < entities.length; i++) {
-                    let new_entity = extractRelevantDataEntity(entities[i]);
-                    entity_list.push(new_entity);
-                }
-                newGameState.push(entity_list);
+                simpleNotification(root, " -> Extracting Entities...");
+                const E = gameState["core"]["root"]["entityMgr"]["entities"]
+                let entities = E.map(e => ({
+                    components: e.components,
+                    uid: e.uid
+                }));
 
                 // 2. Extract Goals
                 simpleNotification(root, " -> Extracting Goals...")
-                var goal = gameState["core"]["root"]["hubGoals"]["currentGoal"];
-                let transfferedGoal = extractRelevantDataGoal(goal);
-                newGameState.push(transfferedGoal);
+                const G = gameState["core"]["root"]["hubGoals"]["currentGoal"];
+                let goal = ({
+                    definition: G.definition,
+                    required: G.required,
+                });
 
                 // 3. Extract Map
-                simpleNotification(root, " -> Extracting Map Features...")
-                var mapChunkList = [];
-                var map = gameState["core"]["root"]["map"]["chunksById"];
-                for (const [key, value] of map) {
-                    let dict = {};
-                    dict[key] = extractRelevantDataMap(value);
-                    mapChunkList.push(dict);
-                }
-                newGameState.push(mapChunkList);
+                simpleNotification(root, " -> Extracting Map Resources...")
+                const M = gameState["core"]["root"]["map"]["chunksById"];
+                let resources = Object.values(M).map(m => ({
+                    contents: m.contents,
+                    lowerLayer: m.lowerLayer,
+                    patches: m.patches,
+                    tileSpaceRectangle: m.tileSpaceRectangle,
+                    tileX: m.tileX,
+                    tileY: m.tileY,
+                    worldSpaceRectangle: m.worldSpaceRectangle,
+                    x: m.x,
+                    y: m.y,
+                }));
 
-                simpleNotification(root, "Packaged gameState.")
-                return newGameState;
+                simpleNotification(root, " -> Packaged gameState.")
+                return [entities, resources, goal]
             }
         }
 
@@ -185,28 +155,22 @@ class Mod extends shapez.Mod {
             })
                 .then((response) => response.json())
                 .then((data) => {
+                    simpleNotification(root, "AI Model Query Complete.")
                     console.log(data);
                 });
         }
 
-
         /* Places a ghost entity at the desired location */
-        function addGhostEnitities() {
-            // TODO: Place a ghost entity at the desired location.
-        }
-
+        function addGhostEnitities() { }
 
         /* Removes a single ghost entity. */
-        function removeGhostEntities() {
-            //TODO:  Removes a single ghost entity
-        }
-
+        function removeGhostEntities() { }
 
         /* Clears all ghost entities on the screen. */
-        function clearGhostEntities() {
-            // TODO:  Remove ALL ghost entities.
-        }
+        function clearGhostEntities() { }
 
+        /* Plays a simple animated avatar, ShAIpEZy */
+        function playAvatar() { }
 
     }
 }
