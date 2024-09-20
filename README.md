@@ -1,3 +1,7 @@
+# Link to documentation testing video:
+# https://www.youtube.com/watch?v=gZ1ggnKrnt4
+
+
 ## NEW: Shapez 2!
 
 We are currently working on a successor to shapez, with 3D Graphics, Exploration, Layers, Mass transport, New Shape Mechanics, Research and a lot more! Be sure to check it out:
