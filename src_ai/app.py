@@ -9,7 +9,7 @@ Created on Tue Aug 13, 2024 at 09:55:35
 import sys
 import os
 from signals import ListenServer
-from model import Board, Overseer, Architect
+from model import Board, Overseer, Architect, RhysArchitect
 # from model import rhys_model
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -18,9 +18,9 @@ if __name__ == "__main__":
     print("Running the Shapez.ai module...")
 
     # Start our AI Model Classes
-    overseer_ai = Overseer()
-    architect_ai = Architect()
-    for model in [overseer_ai, architect_ai]:
+    overseer = Overseer()
+    architect = Architect()
+    for model in [overseer, architect]:
         STATE = 'Active' if model.is_alive() else 'Inactive'
         print(f"{model.get_name()} is {STATE}")
 
@@ -30,9 +30,8 @@ if __name__ == "__main__":
     board.setTileXY(2, 2, 'G')
     print(board)
 
-
-    # TODO:  Test and merge the rhys_model
-    # rhys_model()
+    # Test the model merges (Ryhs Model -> Architect)
+    # architect.train()
 
     # Test our Send and Receive Functions
     # sigs = ListenServer()
