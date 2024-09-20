@@ -5,7 +5,7 @@ const METADATA = {
     name: "ShapeZ.ai",
     version: "0.0.1",
     id: "shapezai",
-    description: "Facilitates communication via REST API with a python backend.",
+    description: "Communicates via REST API with a python backend.",
     minimumGameVersion: ">=1.5.0",
 };
 
@@ -13,14 +13,38 @@ const METADATA = {
 class Mod extends shapez.Mod {
     init() {
         console.log("Shapez.ai Module Initialized");
-        console.log("root:", this.root);
 
-        // Sandbox Mode
-        this.modInterface.replaceMethod(shapez.Blueprint, "getCost", function () {
-            return 0;
-        });
-        this.modInterface.replaceMethod(shapez.HubGoals, "isRewardUnlocked", function () {
-            return true;
+
+        /* Sandbox Mode */
+        this.modInterface.replaceMethod(
+            shapez.Blueprint, "getCost",
+            function () { return 0; }
+        );
+        this.modInterface.replaceMethod(
+            shapez.HubGoals, "isRewardUnlocked",
+            function () { return true; }
+        );
+
+
+        /* Register Custom keybinding */
+        this.modInterface.registerIngameKeybinding({
+            id: "shapez_ai_trigger",
+            keyCode: shapez.keyToKeyCode("F"),
+            translation: "trigger_custom_event",
+            modifiers: {
+                shift: true,
+            },
+            handler: root => {
+                // Send a move request to the python backend.
+                var gameState = getGameState(root)
+                backendRequest(root, gameState);
+
+                /* Various Tests */
+                // console.dir(gameState)
+                // backendRequest(root, "Hello");
+                // ryanTest(root);  // Place belt and extractor
+                return shapez.STOP_PROPAGATION;
+            },
         });
 
 
@@ -33,7 +57,6 @@ class Mod extends shapez.Mod {
          * @returns {Entity}
          */
         function tryPlaceSimpleBuilding(root, building, x, y) {
-            console.log("root: ", root)
             return root.logic.tryPlaceBuilding({
                 origin: new shapez.Vector(x, y),
                 building: shapez.gMetaBuildingRegistry.findByClass(
@@ -47,6 +70,17 @@ class Mod extends shapez.Mod {
         }
 
 
+        /* Creates a newgame immediately, used in AI model training. */
+        function newGame(root) {
+            /**
+             * Save or quit current game then make a new one wont work as we
+             * need the mod laughcher ot stay running ?? or not or do we just
+             * need app.py running, can do this way??
+             */
+            root.gameState.goBackToMenu();
+        }
+
+
         /* Simplifies the notification system. */
         function simpleNotification(root, msg) {
             // Display a message when called
@@ -57,29 +91,14 @@ class Mod extends shapez.Mod {
         }
 
 
-        // Register Custom keybinding
-        this.modInterface.registerIngameKeybinding({
-            id: "shapez_ai_trigger",
-            keyCode: shapez.keyToKeyCode("F"),
-            translation: "trigger_custom_event",
-            modifiers: {
-                shift: true,
-            },
-            handler: root => {
-                // TEST Ryan: Place belt and extractor
-                // simpleNotification(root, "Ryan's Placement Test")
-                // var u = tryPlaceSimpleBuilding(root, shapez.MetaBeltBuilding, 3, 4)
-                // var v = tryPlaceSimpleBuilding(root, shapez.MetaMinerBuilding, 3, 5)
-
-                // Send a move request to the python backend.
-                var gameState = getGameState(root)
-                console.dir(gameState)
-                // backendRequest(root, "Hello");
-                backendRequest(root, gameState);
-
-                return shapez.STOP_PROPAGATION;
-            },
-        });
+        /* Ryan's Placement Test. */
+        function ryanTest(root) {
+            simpleNotification(root, "Ryan's Placement Test")
+            var belt = shapez.MetaBeltBuilding
+            var miner = shapez.MetaMinerBuilding
+            var u = tryPlaceSimpleBuilding(root, belt, 3, 4)
+            var v = tryPlaceSimpleBuilding(root, miner, 3, 5)
+        }
 
 
         /**
@@ -89,48 +108,82 @@ class Mod extends shapez.Mod {
          * @returns {type} None
          */
         function getGameState(root) {
-            // TODO: Chunks or map?
             var gameState = root.gameState;
-            if (gameState == null) { return; }  // Guard Clause
+            if (gameState == null || gameState["key"] !== "InGameState") {
+                return;
+            }
             simpleNotification(root, "Gathering gameState...")
 
-            // Process State
-            if (gameState["key"] == "InGameState") {
+            // 1. Extract Entities
+            simpleNotification(root, " -> Extracting Entities...");
+            const E = gameState["core"]["root"]["entityMgr"]["entities"]
+            let entities = E.map(e => {
+                let ec = e.components;
+                /* Clean the entity description for the backend here. */
+                return {
+                    uid: e.uid,
+                    type:
+                        //TODO: Hate it, let's look for an inbuilt getType.
+                        !!ec.Hub ? "Hub" : null ||
+                            !!ec.Miner ? "Miner" : null ||
+                                !!ec.Belt ? "Belt" : null ||
+                                    !!ec.UndergroundBelt ? "UndergroundBelt" : null ||
+                        "Unknown",
+                    x: ec.StaticMapEntity.origin.x,
+                    y: ec.StaticMapEntity.origin.y,
+                    rotation: ec.StaticMapEntity.rotation,
+                    direction:
+                        !!ec.Belt
+                            ? ec.Belt.direction
+                            : null,
+                    mode:
+                        !!ec.UndergroundBelt
+                            ? ec.UndergroundBelt.mode
+                            : null,
+                };
+            });
 
-                // 1. Extract Entities
-                simpleNotification(root, " -> Extracting Entities...");
-                const E = gameState["core"]["root"]["entityMgr"]["entities"]
-                let entities = E.map(e => ({
-                    components: e.components,
-                    uid: e.uid
-                }));
 
-                // 2. Extract Goals
-                simpleNotification(root, " -> Extracting Goals...")
-                const G = gameState["core"]["root"]["hubGoals"]["currentGoal"];
-                let goal = ({
-                    definition: G.definition,
-                    required: G.required,
-                });
+            // 2. Extract Level & Goals
+            simpleNotification(root, " -> Extracting Goals...")
+            let level = gameState["core"]["root"]["hubGoals"]["level"];
+            const G = gameState["core"]["root"]["hubGoals"]["currentGoal"];
+            let goal = ({
+                level: level,
+                definition: G.definition,
+                required: G.required,
+            });
+            // TODO:  Defining a goal
+            /**
+             * Should we judge the model on actual parts per tick, or on a
+             * cost vs complexity model.
+             */
 
-                // 3. Extract Map
-                simpleNotification(root, " -> Extracting Map Resources...")
-                const M = gameState["core"]["root"]["map"]["chunksById"];
-                let resources = Object.values(M).map(m => ({
-                    contents: m.contents,
-                    lowerLayer: m.lowerLayer,
-                    patches: m.patches,
-                    tileSpaceRectangle: m.tileSpaceRectangle,
-                    tileX: m.tileX,
-                    tileY: m.tileY,
-                    worldSpaceRectangle: m.worldSpaceRectangle,
-                    x: m.x,
-                    y: m.y,
-                }));
 
-                simpleNotification(root, " -> Packaged gameState.")
-                return [entities, resources, goal]
-            }
+            // 3. Extract Map (By Chunks for optimal resource scanning)
+            simpleNotification(root, " -> Extracting Map Resources...")
+            let seed = gameState["core"]["root"]["map"]["seed"];
+            const M = gameState["core"]["root"]["map"]["chunksById"];
+            const chunks = Object.fromEntries(
+                // Assume all chunks are 16x16 and hardcode
+                Array.from(M.entries()).map(([key, chunk]) => [key, {
+                    x: chunk.x,
+                    y: chunk.y,
+                    resources: chunk.lowerLayer,
+                    patches: chunk.patches,
+                }])
+            );
+
+
+            // Fin. Return packaged gameState.
+            simpleNotification(root, " -> Packaged gameState.")
+            return {
+                seed: seed,
+                map: chunks,
+                level: level,
+                goal: goal,
+                entities: entities
+            };
         }
 
 
