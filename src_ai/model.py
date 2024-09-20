@@ -190,7 +190,6 @@ class RhysArchitect(Model):
                 break
         return
 
-
     def _step(self, state):
         """ Advances the model one step. """
         super().step()
