@@ -1,14 +1,10 @@
 # Shapez.AI by Fish Obsessed
 
-## Python Requirements
+## Documentation test video:
 
-> TODO: This can be handled automatically by the requirements.txt
+> https://www.youtube.com/watch?v=gZ1ggnKrnt4
 
--   keras ---- 3.0 +
--   numpy
--   flask ---- ??
-
-## Python Virtual Environments (.venv)
+## Python Virtual Environments (.venv) & Requirements
 
 Save your python package requirements for easy install:
 
