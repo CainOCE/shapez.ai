@@ -17,6 +17,29 @@ from gymnasium.wrappers import AtariPreprocessing, FrameStack
 os.environ["KERAS_BACKEND"] = "tensorflow"
 
 
+class Board:
+    """ Defines the gameState as an abstract board representation. """
+    def __init__(self, width=16, height=16):
+        self.width = width
+        self.height = height
+        self.board = [['_' for _ in range(width)] for _ in range(height)]
+
+    def __str__(self):
+        """ Reresentation when the board is used as a string. """
+        return '\n'.join(''.join(row) for row in self.board)
+
+    def setTileXY(self, x, y, tile):
+        """ Sets the tile located at a standard (x, y) coordinate. """
+        if not (0 <= x < self.width) or not (0 <= y < self.height):
+            return "Error: Coordinates out of bounds."
+        self.board[-y][x-1] = tile
+        return
+
+    def getTileXY(self, x, y):
+        """ Gets the tile located at an (x, y) coordinate. """
+        return self.board[-y][x-1]
+
+
 class Model:
     """ An abstract model class for AI development. """
 
