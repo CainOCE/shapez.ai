@@ -45,11 +45,10 @@ game frontend.
 
 #### Frontend Entrypoint
 
-> mod_examples/\_mod_ai_wrapper.js -> Game Interactions
+> mod_examples/\_mod_ai_wrapper.js -> Game Interactions & Frontend Entrypoint
 
 #### Python Backend Systems
 
 > src_ai/app.py -> Backend Entrypoint \
 > src_ai/model.py -> AI Model \
-> src_ai/signals.py -> REST API \
-> src_ai/game.py -> Temporary File
+> src_ai/signals.py -> REST API
