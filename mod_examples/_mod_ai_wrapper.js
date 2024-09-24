@@ -143,7 +143,6 @@ class Mod extends shapez.Mod {
                 };
             });
 
-
             // 2. Extract Level & Goals
             simpleNotification(root, " -> Extracting Goals...")
             let level = gameState["core"]["root"]["hubGoals"]["level"];
@@ -159,7 +158,6 @@ class Mod extends shapez.Mod {
              * cost vs complexity model.
              */
 
-
             // 3. Extract Map (By Chunks for optimal resource scanning)
             simpleNotification(root, " -> Extracting Map Resources...")
             let seed = gameState["core"]["root"]["map"]["seed"];
@@ -173,7 +171,6 @@ class Mod extends shapez.Mod {
                     patches: chunk.patches,
                 }])
             );
-
 
             // Fin. Return packaged gameState.
             simpleNotification(root, " -> Packaged gameState.")
@@ -206,6 +203,10 @@ class Mod extends shapez.Mod {
                 .then((data) => {
                     simpleNotification(root, "AI Model Query Complete.")
                     console.log(data);
+                })
+                .catch((error) => {
+                    simpleNotification(root, `Failed to Query Model.`);
+                    console.error("Request failed:", error);
                 });
         }
 
