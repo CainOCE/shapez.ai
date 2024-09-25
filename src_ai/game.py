@@ -4,43 +4,16 @@ Created on Wed Sep 25, 2024 at 13:00:32
 
 @authors: Rhys Tyne, Cain Bruhn-Tanzer
 """
-# pylint: disable=C0103, C0209
-# TODO:  Discuss suppressing error codes
-#  C0103 -> snake case: TODO Debate this one
-#  C0209 -> f_strings:  It's wrong here.
-
-# A lot of uniode in this one, see below for suggestions.
+# A lot of unicode in this one, see below for suggestions.
 # https://www.w3.org/TR/xml-entity-names/025.html
 # http://xahlee.info/comp/unicode_arrows.html
-# Note: Shapez.io defines rotation in True North Bearings
+# Note: Shapez.io defines rotation in True North Bearings e.g. URDL or NESW
 
-# Set some program output defaults
-DEFAULT_TILES = '.'
+EMPTY_TILE = '.'
 UNKNOWN_TILE = "?"
 BORDER_TILES = '◼◢◣◥◤'
 
-# Entity Tile Map
 ENTITIES = {
-    # Resources
-    "Red": "R",
-    "Green": "G",
-    "Blue": "B",
-
-    # Entities
-    "Belt": "↑→↓←↗↘↙↖",
-    "Miner": "▲▶▼◀",
-    "Rotator": "",
-    "Merger": "",
-    "Splitter": "",
-    "Tunnel": "",
-    "Trash": "X"
-}
-LEFT_ROTATOR_TILES = '⮰⮱⮲⮳⮴⮵⮶⮷⮰⮱⮲⮳⮴⮵⮶⮷'
-RIGHT_ROTATOR_TILES = '⮰⮱⮲⮳⮴⮵⮶⮷⮰⮱⮲⮳⮴⮵⮶⮷'
-
-# Entity Unicode Mapping
-# Note:
-Tiles = {
     # Resources
     "Red": "R",
     "Green": "G",
@@ -49,18 +22,29 @@ Tiles = {
     # Single Entity Structures
     "Belt": "↑→↓←↗↘↙↖",
     "Miner": "▲▶▼◀",
-    "Rotator": "",
-    "Merger": "",
-    "Splitter": "",
-    "Tunnel": "",
+    "RotatorL": "⮰⮱⮲⮳⮴⮵⮶⮷⮰⮱⮲⮳⮴⮵⮶⮷",
+    "RotatorR": "⮰⮱⮲⮳⮴⮵⮶⮷⮰⮱⮲⮳⮴⮵⮶⮷",
+    "Merger": "╦╣╩╠",
+    "Splitter": "╦╣╩╠",
+    "Tunnel": "⮉⮊⮋⮈",
     "Trash": "X",
 
-    # 'Type': # ['Tile', URDL']
-    "Balancer": "⤧⤨⤩⤪",
-    "Cutter": ["⭻⭼⭽⯬"],
-    "Stacker": ["◰◳◲◱"],
-    "Mixer": ["◴◶◷◵"],
-    "Painter": "",
+    # Structures
+    "Hub": [
+        "╔HUB",
+        "║  ║",
+        "║  ║",
+        "╚══╝"
+        ],
+    "Balancer": ["⮤⮥", "⮣⮡ ", "⮦⮧", "⮠'⮢"],
+    "DualCutter": ["⭻🠴"],
+    "QuadCutter": ["⭻🠴🠴🠴"],
+    "Stacker": ["◰🠴", "◳🠵", "◲🠶", "◱🠷"],
+    "Mixer": ["◴🠴", "◷🠵", "◶🠶", "◵🠷"],
+    "DualPainterL": ["⮙🠵", "??", "??", "??"],
+    "DualPainterR": ["⮙🠵", "??", "??", "??"],
+    "QuadPainterA": ["⮙🠵", "??", "??", "??"],
+    "QuadPainterB": ["⮙🠵", "??", "??", "??"],
     "Storage": [
         ["S⇑",
          "╚╝"],
@@ -96,23 +80,23 @@ class Game():
         return out
 
     # TODO:  Assumes valid gameState, may need a guard/validation function
-    def update(self, incomingGameState):
+    def update(self, game_state):
         """ Updates the python gameState to match client. """
         print("Incoming Python Update ->:")
 
         # 1.  Import Seed
         if self.seed is None:
-            self.seed = incomingGameState['seed']
+            self.seed = game_state['seed']
 
         # 2.  Import Current Level and Goals
         if self.level is None:
-            self.level = incomingGameState['level']
+            self.level = game_state['level']
         if self.goal is None:
-            self.goal = incomingGameState['goal']
+            self.goal = game_state['goal']
 
         # 3.  Import Map Chunks
-        for chunk in incomingGameState['map']:
-            c = incomingGameState['map'][chunk]
+        for chunk in game_state['map']:
+            c = game_state['map'][chunk]
             self.map[chunk] = Chunk(c['x'], c['y'])
 
             # for child in val:
@@ -120,49 +104,53 @@ class Game():
 
         # 4.  Import Entities
         E = ENTITIES
-        for e in incomingGameState['entities']:
+        for e in game_state['entities']:
             # Select Tile based on entity
             tile = UNKNOWN_TILE
+
+            if e['type'] == "Hub":
+                self._place_structure(e['x'], ['y'], 0, 0, E["Hub"])
+
             if e['type'] == "Belt":
                 if e['direction'] == 'top':
-                    tile = E["Belt"][e['rotation'] // 90]
+                    tile = E["Belt"][e['rotation']//90]
                 if e['direction'] == 'right':
-                    tile = E["Belt"][(e['rotation'] // 90)+4]
+                    tile = E["Belt"][(e['rotation']//90)+4]
                 if e['direction'] == 'left':
-                    if e['rotation'] == 0:
-                        tile = E["Belt"][7]
-                    if e['rotation'] == 90:
-                        tile = E["Belt"][4]
-                    if e['rotation'] == 180:
-                        tile = E["Belt"][5]
-                    if e['rotation'] == 270:
-                        tile = E["Belt"][6]
+                    tile = E["Belt"][([7, 4, 5, 6])[e['rotation']//90]]
+                self._place_tile(e['x'], e['y'], tile)
 
             if e['type'] == "Miner":
-                tile = E["Miner"][e['rotation'] // 90]
+                self._place_tile(e['x'], e['y'], E["Miner"][e['rotation']//90])
 
-            self.setTileXY(e['x'], e['y'], tile)
-        print(self.getChunk(0, 0))
+        print(self.get_chunk(0, 0))
 
-    def getChunk(self, x, y):
+    def get_chunk(self, x, y):
         """ Returns a chunk given a positional key. """
         key = f"{x}|{y}"
         return self.map.get(key)
 
-    def listChunks(self):
+    def list_chunks(self):
         """ Lists all chunks stored in the game class. """
         if not self.map:
             return "Current Chunks:  [None]\n"
         chunks = "\n".join(f"  {repr(chunk)}" for chunk in self.map)
         return f"Current Chunks:  \n{chunks}"
 
-    def setTileXY(self, x, y, tile):
-        """ Sets the tile located at a global (x, y) coordinate. """
-        (self.getChunk(x // 16, y // 16)).setTileXY(x % 16, y % 16, tile)
+    def _get_tile(self, x, y, tile):
+        """ Sets the Entity located at a global (x, y) coordinate. """
+        (self.get_chunk(x // 16, y // 16)).place_tile(x % 16, y % 16, tile)
 
-    def getTileXY(self, x, y):
-        """ Gets the tile located at a global (x, y) coordinate. """
-        return (self.getChunk(x // 16, y // 16)).getTileXY(x % 16, y % 16)
+    def _place_tile(self, x, y, tile):
+        """ Places a tile at a global (x, y) coordinate. """
+        (self.get_chunk(x // 16, y // 16)).place_tile(x % 16, y % 16, tile)
+
+    def _place_structure(self, x, y, u, v, structure):
+        """
+        Places a structure at a global coordinate (x, y)
+        with offset (u, v).
+        """
+        print(f"NYIPlacing structure: {structure} at ({x}, {y}) += ({u}, {v})")
 
 
 class Chunk:
@@ -171,7 +159,7 @@ class Chunk:
         self.x, self.y = x, y
         self.width, self.height = 16, 16
         self.contents = [
-            [DEFAULT_TILES[0] for _ in range(self.width)]
+            [EMPTY_TILE for _ in range(self.width)]
             for _ in range(self.height)
         ]
 
@@ -184,11 +172,11 @@ class Chunk:
         # return "\n".join("".join(row) for row in self.contents)
         return self.display()
 
-    def setTileXY(self, x, y, tile):
+    def place_tile(self, x, y, tile):
         """ Sets the tile located at a chunk local (x, y) coordinate. """
         self.contents[y][x] = tile
 
-    def getTileXY(self, x, y):
+    def get_tile(self, x, y):
         """ Gets the tile located at a chunk local (x, y) coordinate. """
         return self.contents[y][x]
 
