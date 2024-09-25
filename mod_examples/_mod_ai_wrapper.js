@@ -40,7 +40,6 @@ class Mod extends shapez.Mod {
                 backendRequest(root, gameState);
 
                 /* Various Tests */
-                // console.dir(gameState)
                 // backendRequest(root, "Hello");
                 // ryanTest(root);  // Place belt and extractor
                 return shapez.STOP_PROPAGATION;
@@ -114,7 +113,38 @@ class Mod extends shapez.Mod {
             }
             simpleNotification(root, "Gathering gameState...")
 
-            // 1. Extract Entities
+            // 1.  Extract Game Seed
+            let seed = gameState["core"]["root"]["map"]["seed"];
+
+            // 2.  Extract Level & Goal
+            simpleNotification(root, " -> Extracting Goals...")
+            let level = gameState["core"]["root"]["hubGoals"]["level"];
+            const G = gameState["core"]["root"]["hubGoals"]["currentGoal"];
+            let goal = ({
+                level: level,
+                definition: G.definition,
+                required: G.required,
+            });
+            // TODO:  Defining a goal
+            /**
+             * Should we judge the model on actual parts per tick, or on a
+             * cost vs complexity model.
+             */
+
+            // 3.  Extract Map (By Chunks for optimal resource scanning)
+            simpleNotification(root, " -> Extracting Map Resources...")
+            const M = gameState["core"]["root"]["map"]["chunksById"];
+            let chunks = Object.fromEntries(
+                // Assume all chunks are 16x16 and hardcode
+                Array.from(M.entries()).map(([key, chunk]) => [key, {
+                    x: chunk.x,
+                    y: chunk.y,
+                    resources: chunk.lowerLayer,
+                    patches: chunk.patches,
+                }])
+            );
+
+            // 4.  Extract Entities
             simpleNotification(root, " -> Extracting Entities...");
             const E = gameState["core"]["root"]["entityMgr"]["entities"]
             let entities = E.map(e => {
@@ -143,35 +173,6 @@ class Mod extends shapez.Mod {
                 };
             });
 
-            // 2. Extract Level & Goals
-            simpleNotification(root, " -> Extracting Goals...")
-            let level = gameState["core"]["root"]["hubGoals"]["level"];
-            const G = gameState["core"]["root"]["hubGoals"]["currentGoal"];
-            let goal = ({
-                level: level,
-                definition: G.definition,
-                required: G.required,
-            });
-            // TODO:  Defining a goal
-            /**
-             * Should we judge the model on actual parts per tick, or on a
-             * cost vs complexity model.
-             */
-
-            // 3. Extract Map (By Chunks for optimal resource scanning)
-            simpleNotification(root, " -> Extracting Map Resources...")
-            let seed = gameState["core"]["root"]["map"]["seed"];
-            const M = gameState["core"]["root"]["map"]["chunksById"];
-            const chunks = Object.fromEntries(
-                // Assume all chunks are 16x16 and hardcode
-                Array.from(M.entries()).map(([key, chunk]) => [key, {
-                    x: chunk.x,
-                    y: chunk.y,
-                    resources: chunk.lowerLayer,
-                    patches: chunk.patches,
-                }])
-            );
-
             // Fin. Return packaged gameState.
             simpleNotification(root, " -> Packaged gameState.")
             return {
@@ -197,7 +198,7 @@ class Mod extends shapez.Mod {
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ game_state: gameState }),
+                body: JSON.stringify(gameState),
             })
                 .then((response) => response.json())
                 .then((data) => {
@@ -211,16 +212,22 @@ class Mod extends shapez.Mod {
         }
 
         /* Places a ghost entity at the desired location */
-        function addGhostEnitities() { }
+        function addGhost(entities = []) { }
 
         /* Removes a single ghost entity. */
-        function removeGhostEntities() { }
+        function removeGhost(entities = []) { }
 
         /* Clears all ghost entities on the screen. */
-        function clearGhostEntities() { }
+        function clearGhosts(/* Clears all locally stored.*/) { }
 
         /* Plays a simple animated avatar, ShAIpEZy */
-        function playAvatar() { }
+        function playAvatar() {
+            /** TODO: What can Shapie do?
+             *      - Play some nice animations or dialogue boxes.
+             *      - Play a cool sound or audio track?
+             *      (Dig in to the API and see if you can make somehting cool.)
+             */
+        }
 
     }
 }
