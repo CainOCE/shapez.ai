@@ -2,21 +2,22 @@
 """
 Created on Tue Aug 13, 2024 at 09:55:46
 
-@author: Cain Bruhn-Tanzer
+@authors: Ryan Miles, Cain Bruhn-Tanzer
 """
 
 from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
+from game import Game
 
 
 class ListenServer:
-    """ Generates a REST API server for the python backend. """
-
-    def __init__(self):
+    """ Generates a REST API server for the ShapezAI python backend. """
+    def __init__(self, gameState=Game()):
         self.app = Flask(__name__)
         CORS(self.app)
         self._routing()
         self.alive = False
+        self.gameState = gameState
 
     def _routing(self):
         """Sets up the routes for the Flask app."""
@@ -64,14 +65,8 @@ class ListenServer:
 
     def receive(self, data_in):
         """ Handles incoming signals sent by the game instance. """
-        print("Promise received")
-        print(data_in)
-        if data_in and data_in.get("message") == "Hello":
-            data_out = "World"
-        else:
-            data_out = "Unknown Call"
-        # return jsonify({'move': data_out})  # The returned data
-        return jsonify(data_out)
+        self.gameState.update(data_in)
+        return jsonify("Python Handshake Returned")
 
 
 if __name__ == "__main__":
