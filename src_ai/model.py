@@ -76,7 +76,7 @@ class RhysArchitect(Model):
         self.epsilon = 1.0
         self.epsilon_min = 0.1
         self.epsilon_max = 1.0
-        self.epsilon_interval = (self.epsilon_max - self.epsilon_min)
+        self.epsilon_interval = self.epsilon_max - self.epsilon_min
         self.batch_size = 32
         self.max_steps_per_episode = 10000
         self.max_episodes = 10
