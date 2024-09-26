@@ -12,12 +12,12 @@ from game import Game
 
 class ListenServer:
     """ Generates a REST API server for the ShapezAI python backend. """
-    def __init__(self, gameState=Game()):
+    def __init__(self, game=Game()):
         self.app = Flask(__name__)
         CORS(self.app)
         self._routing()
         self.alive = False
-        self.gameState = gameState
+        self.game = game
 
     def _routing(self):
         """Sets up the routes for the Flask app."""
@@ -65,7 +65,7 @@ class ListenServer:
 
     def receive(self, data_in):
         """ Handles incoming signals sent by the game instance. """
-        self.gameState.update(data_in)
+        self.game.update(data_in)
         return jsonify("Python Handshake Returned")
 
 
