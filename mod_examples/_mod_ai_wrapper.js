@@ -14,37 +14,46 @@ class Mod extends shapez.Mod {
     init() {
         console.log("Shapez.ai Module Initialized");
 
-
         /* Sandbox Mode */
+        this.modInterface.replaceMethod(shapez.Blueprint, "getCost", () => 0);
         this.modInterface.replaceMethod(
-            shapez.Blueprint, "getCost",
-            function () { return 0; }
-        );
-        this.modInterface.replaceMethod(
-            shapez.HubGoals, "isRewardUnlocked",
-            function () { return true; }
+            shapez.HubGoals, "isRewardUnlocked", () => true
         );
 
-
-        /* Register Custom keybinding */
+        /* Register Custom keybindings */
         this.modInterface.registerIngameKeybinding({
-            id: "shapez_ai_trigger",
+            id: "shapez_ai_reset_trigger",
+            keyCode: shapez.keyToKeyCode("R"),
+            translation: "trigger_reset_event",
+            modifiers: { shift: true, },
+            handler: root => {
+                resetGame(root)
+                return shapez.STOP_PROPAGATION;
+            },
+        });
+        this.modInterface.registerIngameKeybinding({
+            id: "shapez_ai_custom_trigger",
             keyCode: shapez.keyToKeyCode("F"),
             translation: "trigger_custom_event",
-            modifiers: {
-                shift: true,
-            },
+            modifiers: { shift: true, },
             handler: root => {
                 // Send a move request to the python backend.
                 var gameState = getGameState(root)
                 backendRequest(root, gameState);
-
-                /* Various Tests */
-                // backendRequest(root, "Hello");
-                // ryanTest(root);  // Place belt and extractor
                 return shapez.STOP_PROPAGATION;
             },
         });
+
+
+        /* Destroys all non-hub map entities and clears progression. */
+        function resetGame(root) {
+            // Remove all Entities
+            const E = root.gameState["core"]["root"]["entityMgr"]["entities"]
+            E.slice(1).forEach(e => {
+                root.map.removeStaticEntity(e);
+                root.entityMgr.destroyEntity(e);
+            });
+        }
 
 
         /**
@@ -69,17 +78,6 @@ class Mod extends shapez.Mod {
         }
 
 
-        /* Creates a newgame immediately, used in AI model training. */
-        function newGame(root) {
-            /**
-             * Save or quit current game then make a new one wont work as we
-             * need the mod laughcher ot stay running ?? or not or do we just
-             * need app.py running, can do this way??
-             */
-            root.gameState.goBackToMenu();
-        }
-
-
         /* Simplifies the notification system. */
         function simpleNotification(root, msg) {
             // Display a message when called
@@ -87,16 +85,6 @@ class Mod extends shapez.Mod {
                 msg,
                 shapez.enumNotificationType.info
             );
-        }
-
-
-        /* Ryan's Placement Test. */
-        function ryanTest(root) {
-            simpleNotification(root, "Ryan's Placement Test")
-            var belt = shapez.MetaBeltBuilding
-            var miner = shapez.MetaMinerBuilding
-            var u = tryPlaceSimpleBuilding(root, belt, 3, 4)
-            var v = tryPlaceSimpleBuilding(root, miner, 3, 5)
         }
 
 
@@ -111,13 +99,11 @@ class Mod extends shapez.Mod {
             if (gameState == null || gameState["key"] !== "InGameState") {
                 return;
             }
-            simpleNotification(root, "Gathering gameState...")
 
             // 1.  Extract Game Seed
             let seed = gameState["core"]["root"]["map"]["seed"];
 
             // 2.  Extract Level & Goal
-            simpleNotification(root, " -> Extracting Goals...")
             let level = gameState["core"]["root"]["hubGoals"]["level"];
             const G = gameState["core"]["root"]["hubGoals"]["currentGoal"];
             let goal = ({
@@ -132,7 +118,6 @@ class Mod extends shapez.Mod {
              */
 
             // 3.  Extract Map (By Chunks for optimal resource scanning)
-            simpleNotification(root, " -> Extracting Map Resources...")
             const M = gameState["core"]["root"]["map"]["chunksById"];
             let chunks = Object.fromEntries(
                 // Assume all chunks are 16x16 and hardcode
@@ -145,36 +130,38 @@ class Mod extends shapez.Mod {
             );
 
             // 4.  Extract Entities
-            simpleNotification(root, " -> Extracting Entities...");
             const E = gameState["core"]["root"]["entityMgr"]["entities"]
             let entities = E.map(e => {
                 let ec = e.components;
+
+                // Check or Simplify Type Names
+                const getType = (ec) => {
+                    console.log(ec)
+                    if (ec.Hub) return "Hub";
+                    if (ec.Miner) return "Miner";
+                    if (ec.Belt) return "Belt";
+                    if (ec.ItemProcessor &&
+                        ec.ItemProcessor.type === 'balancer'
+                    ) {
+                        return "Belt";
+                    }
+                    if (ec.UndergroundBelt) return "UndergroundBelt";
+                    return "Unknown";
+                };
+
                 /* Clean the entity description for the backend here. */
                 return {
                     uid: e.uid,
-                    type:
-                        //TODO: Hate it, let's look for an inbuilt getType.
-                        !!ec.Hub ? "Hub" : null ||
-                            !!ec.Miner ? "Miner" : null ||
-                                !!ec.Belt ? "Belt" : null ||
-                                    !!ec.UndergroundBelt ? "UndergroundBelt" : null ||
-                        "Unknown",
+                    type: getType(ec),
                     x: ec.StaticMapEntity.origin.x,
                     y: ec.StaticMapEntity.origin.y,
                     rotation: ec.StaticMapEntity.rotation,
-                    direction:
-                        !!ec.Belt
-                            ? ec.Belt.direction
-                            : null,
-                    mode:
-                        !!ec.UndergroundBelt
-                            ? ec.UndergroundBelt.mode
-                            : null,
+                    direction: !!ec.Belt ? ec.Belt.direction : null,
+                    mode: !!ec.UndergroundBelt ? ec.UndergroundBelt.mode : null,
                 };
             });
 
             // Fin. Return packaged gameState.
-            simpleNotification(root, " -> Packaged gameState.")
             return {
                 seed: seed,
                 map: chunks,
@@ -210,6 +197,7 @@ class Mod extends shapez.Mod {
                     console.error("Request failed:", error);
                 });
         }
+
 
         /* Places a ghost entity at the desired location */
         function addGhost(entities = []) { }
