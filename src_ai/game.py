@@ -28,14 +28,18 @@ ENTITIES = {
     "Splitter": "╦╣╩╠",
     "Tunnel": "⮉⮊⮋⮈",
     "Trash": "X",
+    "BeltReader": '0',
 
     # Structures
-    "Hub": [
-        "╔HUB",
-        "║  ║",
-        "║  ║",
-        "╚══╝"
-        ],
+    "Hub": {
+        "tile": 'X',
+        "struct": [
+            "╔HUB",
+            "║  ║",
+            "║  ║",
+            "╚══╝"
+            ],
+    },
     "Balancer": ["⮤⮥", "⮣⮡ ", "⮦⮧", "⮠'⮢"],
     "DualCutter": ["⭻🠴"],
     "QuadCutter": ["⭻🠴🠴🠴"],
@@ -55,6 +59,9 @@ ENTITIES = {
         ["⇐╗",
          "S╝"],
     ]
+
+    # Wire Structures
+    # TODO Wiring as an advanced goal? Separate map layer
 }
 
 
@@ -76,7 +83,7 @@ class Game():
 
     def __str__(self, out=""):
         """ Representation when the game class is used as a string. """
-        out += "GAME({self.seed})\n"
+        out += f"GAME: [{self.seed}] - LVL {self.level}\n"
         return out
 
     # TODO:  Assumes valid gameState, may need a guard/validation function
@@ -122,7 +129,7 @@ class Game():
 
             if e['type'] == "Miner":
                 self._place_tile(e['x'], e['y'], E["Miner"][e['rotation']//90])
-
+        print(self)
         print(self.get_chunk(0, 0))
 
     def get_chunk(self, x, y):
