@@ -143,7 +143,7 @@ class Mod extends shapez.Mod {
                     if (ec.ItemProcessor &&
                         ec.ItemProcessor.type === 'balancer'
                     ) {
-                        return "Belt";
+                        return "Balancer";
                     }
                     if (ec.UndergroundBelt) return "UndergroundBelt";
                     return "Unknown";
