@@ -40,7 +40,7 @@ ENTITIES = {
             "╚══╝"
             ],
     },
-    "Balancer": ["⮤⮥", "⮣⮡ ", "⮦⮧", "⮠'⮢"],
+    "Balancer": "⮤⮥⮣⮡⮦⮧⮠'⮢",
     "DualCutter": ["⭻🠴"],
     "QuadCutter": ["⭻🠴🠴🠴"],
     "Stacker": ["◰🠴", "◳🠵", "◲🠶", "◱🠷"],
@@ -112,11 +112,14 @@ class Game():
         # 4.  Import Entities
         E = ENTITIES
         for e in game_state['entities']:
+            print(e)
             # Select Tile based on entity
             tile = UNKNOWN_TILE
 
+            # TODO I hate this, its hacky and needs a better system.
             if e['type'] == "Hub":
-                self._place_structure(e['x'], ['y'], 0, 0, E["Hub"])
+                pass
+                # self._place_structure(e['x'], ['y'], 0, 0, E["Hub"])
 
             if e['type'] == "Belt":
                 if e['direction'] == 'top':
@@ -129,6 +132,21 @@ class Game():
 
             if e['type'] == "Miner":
                 self._place_tile(e['x'], e['y'], E["Miner"][e['rotation']//90])
+
+            if e['type'] == "Balancer":
+                if e['rotation'] == 0:
+                    self._place_tile(e['x']+0, e['y']+0, E["Balancer"][0])
+                    self._place_tile(e['x']+1, e['y']+0, E["Balancer"][1])
+                if e['rotation'] == 90:
+                    self._place_tile(e['x']+0, e['y']+0, E["Balancer"][2])
+                    self._place_tile(e['x']+0, e['y']+1, E["Balancer"][3])
+                if e['rotation'] == 180:
+                    self._place_tile(e['x']+0, e['y']+0, E["Balancer"][4])
+                    self._place_tile(e['x']-1, e['y']+0, E["Balancer"][5])
+                if e['rotation'] == 270:
+                    self._place_tile(e['x']+0, e['y']+0, E["Balancer"][6])
+                    self._place_tile(e['x']+0, e['y']-1, E["Balancer"][7])
+
         print(self)
         print(self.get_chunk(0, 0))
 
@@ -157,6 +175,7 @@ class Game():
         Places a structure at a global coordinate (x, y)
         with offset (u, v).
         """
+
         print(f"NYIPlacing structure: {structure} at ({x}, {y}) += ({u}, {v})")
 
 
