@@ -65,7 +65,7 @@ ENTITIES = {
 }
 
 
-class Game():
+class GameState():
     """ Defines the gameState object in a form malleable my an AI Model.  """
     def __init__(self, chunks=None):
         # General Game State Information
