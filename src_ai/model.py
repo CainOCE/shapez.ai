@@ -36,6 +36,10 @@ class Model:
         """ Advances the model one step. """
         return True
 
+    def query(self, scenario):
+        """ Queries the Model for a solution to a specific scenario. """
+        return None
+
 
 class Overseer(Model):
     """ Model for optimising higher level logistics networks. """
