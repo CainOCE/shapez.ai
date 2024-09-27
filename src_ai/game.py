@@ -110,7 +110,7 @@ class GameState():
             #     print(child)
 
         # 4.  Import Entities
-        E = ENTITIES
+        c = ENTITIES
         for e in game_state['entities']:
             print(e)
             # Select Tile based on entity
@@ -123,29 +123,29 @@ class GameState():
 
             if e['type'] == "Belt":
                 if e['direction'] == 'top':
-                    tile = E["Belt"][e['rotation']//90]
+                    tile = c["Belt"][e['rotation']//90]
                 if e['direction'] == 'right':
-                    tile = E["Belt"][(e['rotation']//90)+4]
+                    tile = c["Belt"][(e['rotation']//90)+4]
                 if e['direction'] == 'left':
-                    tile = E["Belt"][([7, 4, 5, 6])[e['rotation']//90]]
+                    tile = c["Belt"][([7, 4, 5, 6])[e['rotation']//90]]
                 self._place_tile(e['x'], e['y'], tile)
 
             if e['type'] == "Miner":
-                self._place_tile(e['x'], e['y'], E["Miner"][e['rotation']//90])
+                self._place_tile(e['x'], e['y'], c["Miner"][e['rotation']//90])
 
             if e['type'] == "Balancer":
                 if e['rotation'] == 0:
-                    self._place_tile(e['x']+0, e['y']+0, E["Balancer"][0])
-                    self._place_tile(e['x']+1, e['y']+0, E["Balancer"][1])
+                    self._place_tile(e['x']+0, e['y']+0, c["Balancer"][0])
+                    self._place_tile(e['x']+1, e['y']+0, c["Balancer"][1])
                 if e['rotation'] == 90:
-                    self._place_tile(e['x']+0, e['y']+0, E["Balancer"][2])
-                    self._place_tile(e['x']+0, e['y']+1, E["Balancer"][3])
+                    self._place_tile(e['x']+0, e['y']+0, c["Balancer"][2])
+                    self._place_tile(e['x']+0, e['y']+1, c["Balancer"][3])
                 if e['rotation'] == 180:
-                    self._place_tile(e['x']+0, e['y']+0, E["Balancer"][4])
-                    self._place_tile(e['x']-1, e['y']+0, E["Balancer"][5])
+                    self._place_tile(e['x']+0, e['y']+0, c["Balancer"][4])
+                    self._place_tile(e['x']-1, e['y']+0, c["Balancer"][5])
                 if e['rotation'] == 270:
-                    self._place_tile(e['x']+0, e['y']+0, E["Balancer"][6])
-                    self._place_tile(e['x']+0, e['y']-1, E["Balancer"][7])
+                    self._place_tile(e['x']+0, e['y']+0, c["Balancer"][6])
+                    self._place_tile(e['x']+0, e['y']-1, c["Balancer"][7])
 
         print(self)
         print(self.get_chunk(0, 0))
@@ -175,8 +175,11 @@ class GameState():
         Places a structure at a global coordinate (x, y)
         with offset (u, v).
         """
-
         print(f"NYIPlacing structure: {structure} at ({x}, {y}) += ({u}, {v})")
+
+    def get_entities(self):
+        """ Generate a list of entities for each tile. """
+        return
 
 
 class Chunk:
@@ -208,7 +211,7 @@ class Chunk:
 
     def display(self, out=""):
         """ Representation with additional helper information.  """
-        BT = BORDER_TILES
+        bt = BORDER_TILES
 
         def hval(x):
             """ Simple helper that returns a formatted hex number. """
@@ -216,28 +219,28 @@ class Chunk:
 
         # Generate a title line with padded border
         title = f"Chunk {str(self.x).rjust(3)}|{str(self.y).ljust(3)}"
-        header = f"{BT[1]} {f"{BT[0]} "*7} {title} {f" {BT[0]}"*7} {BT[2]}\n"
+        header = f"{bt[1]} {f"{bt[0]} "*7} {title} {f" {bt[0]}"*7} {bt[2]}\n"
 
         # Pretty Hex Column Header
-        out += f"{BT[0]}  " + "".join(
+        out += f"{bt[0]}  " + "".join(
             [f"{'   ' if x % 4 == 0 else ' '}" + hval(x) for x in range(0, 16)]
-            ) + f"   {BT[0]}\n"
+            ) + f"   {bt[0]}\n"
 
         # Some Spacers for clarity
-        ROW_SPACER = f"{BT[0]} {40*' '}    {BT[0]}\n"
-        COL_SPACER = '   '
+        row_spacer = f"{bt[0]} {40*' '}    {bt[0]}\n"
+        col_spacer = '   '
 
         # Generate Terminal Grid Representation
         for y, row in enumerate(self.contents):
-            out += ROW_SPACER if (y > 0 and y % 4 == 0) else ''  # Spacing
+            out += row_spacer if (y > 0 and y % 4 == 0) else ''  # Spacing
             for x, val in enumerate(row):
-                out += f"{BT[0]}  {hval(y)} " if x == 0 else ''  # Row Hex
-                out += COL_SPACER if (x > 0 and x % 4 == 0) else ' '  # Spacing
+                out += f"{bt[0]}  {hval(y)} " if x == 0 else ''  # Row Hex
+                out += col_spacer if (x > 0 and x % 4 == 0) else ' '  # Spacing
                 out += val  # Print Value at Point
-            out += f"   {BT[0]} \n"  # Print Value at Point
+            out += f"   {bt[0]} \n"  # Print Value at Point
 
         # Footer Border
-        footer = f"{BT[3]}{22*f' {BT[0]}'} {BT[4]}"
+        footer = f"{bt[3]}{22*f' {bt[0]}'} {bt[4]}"
         return f"{header}{out}{footer}"
 
 

@@ -9,8 +9,13 @@ const METADATA = {
     minimumGameVersion: ">=1.5.0",
 };
 
+const buildings = {
+    "Belt": shapez.MetaBeltBuilding,
+    "Miner": shapez.MetaMinerBuilding,
+}
 
 class Mod extends shapez.Mod {
+
     init() {
         console.log("Shapez.ai Module Initialized");
 
@@ -38,8 +43,7 @@ class Mod extends shapez.Mod {
             modifiers: { shift: true, },
             handler: root => {
                 // Send a move request to the python backend.
-                var gameState = getGameState(root)
-                backendRequest(root, gameState);
+                backendRequest(root, getGameState(root));
                 return shapez.STOP_PROPAGATION;
             },
         });
@@ -55,6 +59,23 @@ class Mod extends shapez.Mod {
             });
         }
 
+        /* Places a ghost entity at the desired location */
+        function addGhost(entities = []) { }
+
+        /* Removes a single ghost entity. */
+        function removeGhost(entities = []) { }
+
+        /* Clears all ghost entities on the screen. */
+        function clearGhosts(/* Clears all locally stored.*/) { }
+
+        /* Plays a simple animated avatar, ShAIpEZy */
+        function playAvatar() {
+            /** TODO: What can Shapie do?
+             *      - Play some nice animations or dialogue boxes.
+             *      - Play a cool sound or audio track?
+             *      (Dig in to the API and see if you can make somehting cool.)
+             */
+        }
 
         /**
          * Simplifies the inbuilt tryPlaceBuilding Method
@@ -64,19 +85,32 @@ class Mod extends shapez.Mod {
          * @param {number} y offsetparam0.rotation
          * @returns {Entity}
          */
-        function tryPlaceSimpleBuilding(root, building, x, y) {
+        function tryPlaceSimpleBuilding(root, building, x, y, rotation=0) {
             return root.logic.tryPlaceBuilding({
                 origin: new shapez.Vector(x, y),
                 building: shapez.gMetaBuildingRegistry.findByClass(
                     building
                 ),
                 originalRotation: 0,
-                rotation: 0,
+                rotation: rotation,
                 variant: "default",
-                rotationVariant: 0,
+                rotationVariant: rotation == 0 ? 0 : 1,
             });
         }
 
+        /** Places buildings given by the backend as a list solution.
+         *
+         */
+        function place_entities(root, entities) {
+            for (let e of entities){
+                tryPlaceSimpleBuilding(
+                    root,
+                    buildings[e.type],
+                    e.x, e.y,
+                    e.rotation
+                )
+            }
+        }
 
         /* Simplifies the notification system. */
         function simpleNotification(root, msg) {
@@ -180,7 +214,7 @@ class Mod extends shapez.Mod {
          */
         async function backendRequest(root, gameState) {
             simpleNotification(root, "Querying AI Model...")
-            var request = await fetch("http://127.0.0.1:5000/process", {
+            var request = await fetch("http://127.0.0.1:5000/query_model", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -190,7 +224,9 @@ class Mod extends shapez.Mod {
                 .then((response) => response.json())
                 .then((data) => {
                     simpleNotification(root, "AI Model Query Complete.")
-                    console.log(data);
+                    console.log("Return Data:");
+                    console.dir(data)
+                    place_entities(root, data)
                 })
                 .catch((error) => {
                     simpleNotification(root, `Failed to Query Model.`);
@@ -198,24 +234,6 @@ class Mod extends shapez.Mod {
                 });
         }
 
-
-        /* Places a ghost entity at the desired location */
-        function addGhost(entities = []) { }
-
-        /* Removes a single ghost entity. */
-        function removeGhost(entities = []) { }
-
-        /* Clears all ghost entities on the screen. */
-        function clearGhosts(/* Clears all locally stored.*/) { }
-
-        /* Plays a simple animated avatar, ShAIpEZy */
-        function playAvatar() {
-            /** TODO: What can Shapie do?
-             *      - Play some nice animations or dialogue boxes.
-             *      - Play a cool sound or audio track?
-             *      (Dig in to the API and see if you can make somehting cool.)
-             */
-        }
 
     }
 }

@@ -5,14 +5,14 @@ Created on Tue Aug 13, 2024 at 09:55:35
 @authors: Cain Bruhn-Tanzer, Rhys Tyne
 """
 # System Imports
-import sys
 import os
+import sys
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
 from game import GameState
-from model import Overseer, Architect
+from model import Overseer, Architect  # pylint: disable=E0401
 
 # TODO:  Correct module imports for subfolder structure src_ai/app.py
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -35,8 +35,10 @@ class ShapezAI(Flask):
         @self.route('/query_model', methods=['POST'])
         def on_query():
             """ Handles incoming queries sent by the game instance. """
+            # Update GameState and Query Overseer
             self.game.update(request.json)
-            return jsonify(self.architect.query(request.json))
+            response = self.overseer.query(request.json)
+            return jsonify(response)
 
 
 if __name__ == "__main__":
