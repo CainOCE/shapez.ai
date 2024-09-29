@@ -168,18 +168,21 @@ class Mod extends shapez.Mod {
             let entities = E.map(e => {
                 let ec = e.components;
 
-                // Check or Simplify Type Names
+                // Define Entity by Attached Components
                 const getType = (ec) => {
-                    console.log(ec)
-                    if (ec.Hub) return "Hub";
-                    if (ec.Miner) return "Miner";
-                    if (ec.Belt) return "Belt";
-                    if (ec.ItemProcessor &&
-                        ec.ItemProcessor.type === 'balancer'
-                    ) {
-                        return "Balancer";
+                    // Define Entity by Attached Components
+                    if (ec.Miner) return "miner";
+                    if (ec.Belt) return "belt";
+                    if (ec.UndergroundBelt) {
+                        type = ec.UndergroundBelt.mode;
+                        tier = ec.UndergroundBelt.tier;
+                        return `${type}${tier}`;
                     }
-                    if (ec.UndergroundBelt) return "UndergroundBelt";
+                    if (ec.ItemProcessor) return ec.ItemProcessor.type;
+                    if (ec.Storage) return "storage";
+
+                    // TODO Balancers are fun
+                    // console.log(ec)
                     return "Unknown";
                 };
 

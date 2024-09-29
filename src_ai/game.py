@@ -20,36 +20,36 @@ ENTITIES = {
     "Blue": "B",
 
     # Single Entity Structures
-    "Belt": "↑→↓←↗↘↙↖",
-    "Miner": "▲▶▼◀",
-    "RotatorL": "⮰⮱⮲⮳⮴⮵⮶⮷⮰⮱⮲⮳⮴⮵⮶⮷",
-    "RotatorR": "⮰⮱⮲⮳⮴⮵⮶⮷⮰⮱⮲⮳⮴⮵⮶⮷",
-    "Merger": "╦╣╩╠",
-    "Splitter": "╦╣╩╠",
-    "Tunnel": "⮉⮊⮋⮈",
-    "Trash": "X",
-    "BeltReader": '0',
+    "belt": "↑→↓←↗↘↙↖",
+    "sender0": "⮉⮊⮋⮈",   # Underground belt entrance
+    "receiver0": "⮉⮊⮋⮈",    # Underground belt exit
+    "sender1": "⮉⮊⮋⮈",
+    "receiver1": "⮉⮊⮋⮈",
+    "miner": "▲▶▼◀",
+    "rotator": "⮰⮱⮲⮳⮴⮵⮶⮷⮰⮱⮲⮳⮴⮵⮶⮷",  # 90 Right
+    "rotatorCCW": "⮰⮱⮲⮳⮴⮵⮶⮷⮰⮱⮲⮳⮴⮵⮶⮷",   # CCW -> Counter Clockwise 90
+    "rotator180": "⮰⮱⮲⮳⮴⮵⮶⮷⮰⮱⮲⮳⮴⮵⮶⮷",
+    # "Merger": "╦╣╩╠",
+    # "Splitter": "⬀⬂⬃⬁",   # Points to the ejection corner
+    "trash": "X",
+    "reader": '0',
 
     # Structures
-    "Hub": {
-        "tile": 'X',
-        "struct": [
-            "╔HUB",
-            "║  ║",
-            "║  ║",
-            "╚══╝"
-            ],
-    },
-    "Balancer": "⮤⮥⮣⮡⮦⮧⮠'⮢",
-    "DualCutter": ["⭻🠴"],
-    "QuadCutter": ["⭻🠴🠴🠴"],
-    "Stacker": ["◰🠴", "◳🠵", "◲🠶", "◱🠷"],
-    "Mixer": ["◴🠴", "◷🠵", "◶🠶", "◵🠷"],
-    "DualPainterL": ["⮙🠵", "??", "??", "??"],
-    "DualPainterR": ["⮙🠵", "??", "??", "??"],
-    "QuadPainterA": ["⮙🠵", "??", "??", "??"],
-    "QuadPainterB": ["⮙🠵", "??", "??", "??"],
-    "Storage": [
+    "hub": [
+        "╔HUB",
+        "║  ║",
+        "║  ║",
+        "╚══╝"
+    ],
+    "balancer": "⮤⮥⮣⮡⮦⮧⮠'⮢",
+    "cutter": ["⭻🠴"],
+    "cutterQuad": ["⭻🠴🠴🠴"],
+    "stacker": ["◰🠴", "◳🠵", "◲🠶", "◱🠷"],
+    "mixer": ["◴🠴", "◷🠵", "◶🠶", "◵🠷"],
+    "painter": ["⮙🠵", "??", "??", "??"],
+    "painterDouble": ["⮙🠵", "??", "??", "??"],
+    "painterQuad": ["⮙🠵", "??", "??", "??"],
+    "storage": [
         ["S⇑",
          "╚╝"],
         ["╔S",
@@ -60,8 +60,7 @@ ENTITIES = {
          "S╝"],
     ]
 
-    # Wire Structures
-    # TODO Wiring as an advanced goal? Separate map layer
+    # TODO Wire Structures as an advanced goal? Req. Separate map layer
 }
 
 
@@ -81,9 +80,10 @@ class GameState():
             key = f"{chunk.x}|{chunk.y}"
             self.map[key] = chunk
 
-    def __str__(self, out=""):
+    def __str__(self):
         """ Representation when the game class is used as a string. """
-        out += f"GAME: [{self.seed}] - LVL {self.level}\n"
+        # TODO Give a brief description of the current goal.
+        out = f"GAME: [{self.seed}] - LVL {self.level} - GOAL: [TBD]\n"
         return out
 
     # TODO:  Assumes valid gameState, may need a guard/validation function
@@ -117,38 +117,37 @@ class GameState():
             tile = UNKNOWN_TILE
 
             # TODO I hate this, its hacky and needs a better system.
-            if e['type'] == "Hub":
-                pass
-                # self._place_structure(e['x'], ['y'], 0, 0, E["Hub"])
+            if e['type'] == "hub":
+                self._place_structure(e['x'], e['y'], 0, 0, c["hub"])
 
-            if e['type'] == "Belt":
+            if e['type'] == "belt":
                 if e['direction'] == 'top':
-                    tile = c["Belt"][e['rotation']//90]
+                    tile = c["belt"][e['rotation']//90]
                 if e['direction'] == 'right':
-                    tile = c["Belt"][(e['rotation']//90)+4]
+                    tile = c["belt"][(e['rotation']//90)+4]
                 if e['direction'] == 'left':
-                    tile = c["Belt"][([7, 4, 5, 6])[e['rotation']//90]]
+                    tile = c["belt"][([7, 4, 5, 6])[e['rotation']//90]]
                 self._place_tile(e['x'], e['y'], tile)
 
-            if e['type'] == "Miner":
-                self._place_tile(e['x'], e['y'], c["Miner"][e['rotation']//90])
+            if e['type'] == "miner":
+                self._place_tile(e['x'], e['y'], c["miner"][e['rotation']//90])
 
-            if e['type'] == "Balancer":
+            if e['type'] == "balancer":
                 if e['rotation'] == 0:
-                    self._place_tile(e['x']+0, e['y']+0, c["Balancer"][0])
-                    self._place_tile(e['x']+1, e['y']+0, c["Balancer"][1])
+                    self._place_tile(e['x']+0, e['y']+0, c["balancer"][0])
+                    self._place_tile(e['x']+1, e['y']+0, c["balancer"][1])
                 if e['rotation'] == 90:
-                    self._place_tile(e['x']+0, e['y']+0, c["Balancer"][2])
-                    self._place_tile(e['x']+0, e['y']+1, c["Balancer"][3])
+                    self._place_tile(e['x']+0, e['y']+0, c["balancer"][2])
+                    self._place_tile(e['x']+0, e['y']+1, c["balancer"][3])
                 if e['rotation'] == 180:
-                    self._place_tile(e['x']+0, e['y']+0, c["Balancer"][4])
-                    self._place_tile(e['x']-1, e['y']+0, c["Balancer"][5])
+                    self._place_tile(e['x']+0, e['y']+0, c["balancer"][4])
+                    self._place_tile(e['x']-1, e['y']+0, c["balancer"][5])
                 if e['rotation'] == 270:
-                    self._place_tile(e['x']+0, e['y']+0, c["Balancer"][6])
-                    self._place_tile(e['x']+0, e['y']-1, c["Balancer"][7])
+                    self._place_tile(e['x']+0, e['y']+0, c["balancer"][6])
+                    self._place_tile(e['x']+0, e['y']-1, c["balancer"][7])
 
         print(self)
-        print(self.get_chunk(0, 0))
+        print(self.show_hub_area())
 
     def get_chunk(self, x, y):
         """ Returns a chunk given a positional key. """
@@ -175,11 +174,67 @@ class GameState():
         Places a structure at a global coordinate (x, y)
         with offset (u, v).
         """
-        print(f"NYIPlacing structure: {structure} at ({x}, {y}) += ({u}, {v})")
+        print(f"Placing structure: {structure} at ({x}, {y}) += ({u}, {v})")
+        for j, row in enumerate(structure):
+            for i, char in enumerate(row):
+                if char != ' ':
+                    self._place_tile(x+i, y+j, char)
+
+    def _rotate_structure(self, structure, rotation=0):
+        """ Rotate a model structure by a rotation of 0, 90, 180, 270. """
+
+        def clockwise(array):
+            """ Rotate the model structure 90 degrees clockwise."""
+            return [''.join(reversed(col)) for col in zip(*array)]
+
+        def counterclockwise(array):
+            """ Rotate the modelstructure 90 degrees counterclockwise."""
+            return [''.join(col) for col in reversed(list(zip(*array)))]
+
+        if rotation == 0:
+            return structure
+        elif rotation == 90:
+            return clockwise(structure)
+        elif rotation == 180:
+            return clockwise(clockwise(structure))
+        elif rotation == 270:
+            return counterclockwise(structure)
+        else:
+            raise ValueError("Rotation must be 0, 90, 180, or 270 degrees.")
 
     def get_entities(self):
         """ Generate a list of entities for each tile. """
         return
+
+    def show_hub_area(self):
+        """ Shows the chunks around the hub area. """
+        # Split the strings into lines
+        def merge_output(str1, str2):
+            """ Merges two output statements. """
+            merged_lines = []
+
+            lines1 = str1.splitlines()
+            lines2 = str2.splitlines()
+            max_lines = max(len(lines1), len(lines2))
+
+            for i in range(max_lines):
+                line1 = lines1[i] if i < len(lines1) else ''
+                line2 = lines2[i] if i < len(lines2) else ''
+
+                # Merge the lines with the separator
+                merged_lines.append(line1 + " " + line2)
+            return '\n'.join(merged_lines)
+
+        out = merge_output(
+            self.get_chunk(-1, -1).display(),
+            self.get_chunk(0, -1).display()
+        )
+        out += '\n'
+        out += merge_output(
+            self.get_chunk(-1, 0).display(),
+            self.get_chunk(0, 0).display()
+        )
+        return out
 
 
 class Chunk:
@@ -198,7 +253,6 @@ class Chunk:
 
     def __str__(self, out=""):
         """ Representation when the chunk is used as a string. """
-        # return "\n".join("".join(row) for row in self.contents)
         return self.display()
 
     def place_tile(self, x, y, tile):
@@ -237,7 +291,7 @@ class Chunk:
                 out += f"{bt[0]}  {hval(y)} " if x == 0 else ''  # Row Hex
                 out += col_spacer if (x > 0 and x % 4 == 0) else ' '  # Spacing
                 out += val  # Print Value at Point
-            out += f"   {bt[0]} \n"  # Print Value at Point
+            out += f"   {bt[0]}\n"  # Print Value at Point
 
         # Footer Border
         footer = f"{bt[3]}{22*f' {bt[0]}'} {bt[4]}"

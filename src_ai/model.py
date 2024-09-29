@@ -71,7 +71,7 @@ class Overseer(Model):
             {"type": "Belt", "x": 3, "y": 4, "rotation": 0},
             {"type": "Miner", "x": 4, "y": 4, "rotation": 0}
         ]
-        return temp_response
+        return None
 
 
 class Architect(Model):
