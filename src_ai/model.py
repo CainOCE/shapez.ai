@@ -40,7 +40,7 @@ class Model:
         """ Advances the model multiple steps to complete a training cycle. """
         return None
 
-    def query(self):
+    def query(self, scenario):
         """ Queries the Model for a solution to a specific scenario. """
         return None
 
@@ -84,6 +84,10 @@ class Architect(Model):
     def __init__(self):
         super().__init__()
         self.name = "Architect"
+
+    def query(self, scenario):
+        """ Returns a recommended action when given a scenario. """
+        return None
 
 
 class RhysArchitect(Model):
