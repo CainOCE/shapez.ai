@@ -4,18 +4,10 @@ Created on Tue Aug 13, 2024 at 09:55:35
 
 @authors: Cain Bruhn-Tanzer, Rhys Tyne
 """
-# System Imports
-import os
-import sys
-
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-
 from game import GameState
-from model import Overseer, Architect  # pylint: disable=E0401
-
-# TODO:  Correct module imports for subfolder structure src_ai/app.py
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from model import Overseer, Architect
 
 
 class ShapezAI(Flask):
