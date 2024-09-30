@@ -14,6 +14,23 @@ const buildings = {
     "Miner": shapez.MetaMinerBuilding,
 }
 
+
+const resources = {
+    // Colours
+    "red": "r",
+    "green": "g",
+    "blue": "b",
+    // NOTE:  Compound Colors do not exist on the map
+
+    // Base Shapes
+    "RuRuRuRu": "R",    // Rectangle
+    "CuCuCuCu": "C",    // Circle
+    "SuSuSuSu": "S",    // Star
+
+    // Exists only Fractionally on the map eg XxWuXxXx etc
+    "WuWuWuWu": "W",    // Windmill
+}
+
 class Mod extends shapez.Mod {
 
     init() {
@@ -25,7 +42,7 @@ class Mod extends shapez.Mod {
             shapez.HubGoals, "isRewardUnlocked", () => true
         );
 
-        /* Register Custom keybindings */
+        /* Register "Reset Game" keybinding */
         this.modInterface.registerIngameKeybinding({
             id: "shapez_ai_reset_trigger",
             keyCode: shapez.keyToKeyCode("R"),
@@ -36,10 +53,29 @@ class Mod extends shapez.Mod {
                 return shapez.STOP_PROPAGATION;
             },
         });
+
+        /* Register "Trigger Function" keybinding */
         this.modInterface.registerIngameKeybinding({
             id: "shapez_ai_custom_trigger",
             keyCode: shapez.keyToKeyCode("F"),
             translation: "trigger_custom_event",
+            modifiers: { shift: true, },
+            handler: root => {
+                //
+                place_resources(root, [
+                    {"type": "red", "x": 3, "y":-2},
+                    {"type": "CuCuCuCu", "x": 3, "y":-1},
+                    {"type": "CpRpCp--:SwSwSwSw", "x": 3, "y":0},
+                ])
+                return shapez.STOP_PROPAGATION;
+            },
+        });
+
+        /* Register "AI Training" keybinding */
+        this.modInterface.registerIngameKeybinding({
+            id: "shapez_ai_training_trigger",
+            keyCode: shapez.keyToKeyCode("T"),
+            translation: "trigger_traiining_event",
             modifiers: { shift: true, },
             handler: root => {
                 // Send a move request to the python backend.
@@ -51,8 +87,13 @@ class Mod extends shapez.Mod {
 
         /* Destroys all non-hub map entities and clears progression. */
         function resetGame(root) {
-            // Remove all Entities
             const E = root.gameState["core"]["root"]["entityMgr"]["entities"]
+            // GUARD:
+            if (E.size <= 1) {
+                return
+            }
+
+            // Remove all Entities
             E.slice(1).forEach(e => {
                 root.map.removeStaticEntity(e);
                 root.entityMgr.destroyEntity(e);
@@ -82,7 +123,8 @@ class Mod extends shapez.Mod {
          *
          * @param {MetaBuilding} building class of MetaBuilding to place
          * @param {number} X offset
-         * @param {number} y offsetparam0.rotation
+         * @param {number} y offset
+         * @param {number} rotation a number in [0, 90, 180, 270]
          * @returns {Entity}
          */
         function tryPlaceSimpleBuilding(root, building, x, y, rotation=0) {
@@ -98,9 +140,7 @@ class Mod extends shapez.Mod {
             });
         }
 
-        /** Places buildings given by the backend as a list solution.
-         *
-         */
+        /* Places buildings given by the backend as a list solution. */
         function place_entities(root, entities) {
             for (let e of entities){
                 tryPlaceSimpleBuilding(
@@ -108,6 +148,58 @@ class Mod extends shapez.Mod {
                     buildings[e.type],
                     e.x, e.y,
                     e.rotation
+                )
+            }
+        }
+
+        /**
+         * Places a resource at a given location in the game.
+         *
+         * @param {Resource} resource class of resource to place
+         * @param {number} X offset
+         * @param {number} y offset
+         * @returns {Item}
+         */
+        function tryPlaceResource(root, resource, x, y) {
+            const COLORS = shapez.COLOR_ITEM_SINGLETONS
+            const SHAPES = root.shapeDefinitionMgr
+
+            // Get Chunk by x, y
+            let map = root.gameState["core"]["root"]["map"]["chunksById"];
+            let chunkId = `${Math.floor(x/16)}|${Math.floor(y/16)}`
+            let chunk = map.get(chunkId)
+            let item = null
+
+            // GUARD:  Chunk not found
+            if (!chunk) {
+                console.warn(`Chunk not found for key: ${chunkId}`);
+                return null;
+            }
+
+            // Resource is a colour
+            if (Object.keys(COLORS).includes(resource)) {
+                item = COLORS[resource]
+            }
+
+            // Resource is a shape
+            if (shapez.ShapeDefinition.isValidShortKey(resource)) {
+                item = root.shapeDefinitionMgr.getShapeItemFromDefinition(
+                    shapez.ShapeDefinition.fromShortKey(resource)
+                )
+            }
+
+            // Place Resource
+            chunk.lowerLayer[(x%16+16)%16][(y%16+16)%16] = item;
+            return item;
+        }
+
+        /* Places resources at the given locations */
+        function place_resources(root, resources) {
+            for (let r of resources){
+                tryPlaceResource(
+                    root,
+                    r.type,
+                    r.x, r.y,
                 )
             }
         }
