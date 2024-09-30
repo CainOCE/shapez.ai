@@ -62,16 +62,42 @@ class Overseer(Model):
         self.nodes = []
 
     def query(self, scenario):
-        """ Returns a single action given a scenario. """
-        # Build a response from the overseer
-        # Add in a few queries of Architect if necessary.
+        """ Returns a single action given a scenario.
+            - Build a response from the overseer
+            - Add in a few queries of Architect if necessary.
+        """
+        temp_response = []
 
-        temp_response = [
-            {"type": "Belt", "x": 2, "y": 4, "rotation": 90},
-            {"type": "Belt", "x": 3, "y": 4, "rotation": 0},
-            {"type": "Miner", "x": 4, "y": 4, "rotation": 0}
-        ]
-        return None
+        # Place a strip of belts
+        temp_response.extend([
+            {"type": "Belt", "x": 2, "y": y, "rotation": 270}
+            for y in range(-2, 2)]
+        )
+
+        # Place a strip of readers
+        temp_response.extend([
+            {"type": "Reader", "x": 3, "y": y, "rotation": 270}
+            for y in range(-2, 2)]
+        )
+
+        # Place a strip of miners
+        temp_response.extend([
+            {"type": "Miner", "x": 4, "y": y, "rotation": 270}
+            for y in range(-2, 2)]
+        )
+        temp_response.extend([
+            {"type": "Miner", "x": 5, "y": y, "rotation": 270}
+            for y in range(-2, 1)]
+        )
+        temp_response.extend([
+            {"type": "Miner", "x": 6, "y": y, "rotation": 270}
+            for y in range(-2, 0)]
+        )
+        temp_response.extend([
+            {"type": "Miner", "x": 7, "y": -2, "rotation": 270}
+        ])
+
+        return temp_response
 
 
 class Architect(Model):

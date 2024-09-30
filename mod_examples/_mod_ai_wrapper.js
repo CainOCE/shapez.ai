@@ -9,12 +9,6 @@ const METADATA = {
     minimumGameVersion: ">=1.5.0",
 };
 
-const buildings = {
-    "Belt": shapez.MetaBeltBuilding,
-    "Miner": shapez.MetaMinerBuilding,
-}
-
-
 const resources = {
     // Colours
     "red": "r",
@@ -42,6 +36,28 @@ class Mod extends shapez.Mod {
             shapez.HubGoals, "isRewardUnlocked", () => true
         );
 
+        /* Executes code under development */
+        function test(root) {
+            // Place some various resources as a test.
+            let x = 4
+            place_resources(root, [
+                {"type": "red", "x": x, "y":-3},
+                {"type": "CuCuCuCu", "x": x, "y":-2},
+                {"type": "RuRuRuRu", "x": x, "y":-1},
+                {"type": "SuSuSuSu", "x": x, "y":0},
+                {"type": "WuWuWuWu", "x": x, "y":1},
+
+                {"type": "CuCuCuCu", "x": x+1, "y":-2},
+                {"type": "RuRuRuRu", "x": x+1, "y":-1},
+                {"type": "SuSuSuSu", "x": x+1, "y":0},
+
+                {"type": "CuCuCuCu", "x": x+2, "y":-2},
+                {"type": "RuRuRuRu", "x": x+2, "y":-1},
+
+                {"type": "CuCuCuCu", "x": x+3, "y":-2},
+            ])
+        }
+
         /* Register "Reset Game" keybinding */
         this.modInterface.registerIngameKeybinding({
             id: "shapez_ai_reset_trigger",
@@ -56,17 +72,12 @@ class Mod extends shapez.Mod {
 
         /* Register "Trigger Function" keybinding */
         this.modInterface.registerIngameKeybinding({
-            id: "shapez_ai_custom_trigger",
+            id: "shapez_ai_testt_function_trigger",
             keyCode: shapez.keyToKeyCode("F"),
-            translation: "trigger_custom_event",
+            translation: "trigger_test_function_event",
             modifiers: { shift: true, },
             handler: root => {
-                //
-                place_resources(root, [
-                    {"type": "red", "x": 3, "y":-2},
-                    {"type": "CuCuCuCu", "x": 3, "y":-1},
-                    {"type": "CpRpCp--:SwSwSwSw", "x": 3, "y":0},
-                ])
+                test(root)
                 return shapez.STOP_PROPAGATION;
             },
         });
@@ -75,15 +86,13 @@ class Mod extends shapez.Mod {
         this.modInterface.registerIngameKeybinding({
             id: "shapez_ai_training_trigger",
             keyCode: shapez.keyToKeyCode("T"),
-            translation: "trigger_traiining_event",
+            translation: "trigger_training_event",
             modifiers: { shift: true, },
             handler: root => {
-                // Send a move request to the python backend.
                 backendRequest(root, getGameState(root));
                 return shapez.STOP_PROPAGATION;
             },
         });
-
 
         /* Destroys all non-hub map entities and clears progression. */
         function resetGame(root) {
@@ -127,7 +136,7 @@ class Mod extends shapez.Mod {
          * @param {number} rotation a number in [0, 90, 180, 270]
          * @returns {Entity}
          */
-        function tryPlaceSimpleBuilding(root, building, x, y, rotation=0) {
+        function tryPlaceSimpleBuilding(root, building, x, y, rotation=0, variant=0) {
             return root.logic.tryPlaceBuilding({
                 origin: new shapez.Vector(x, y),
                 building: shapez.gMetaBuildingRegistry.findByClass(
@@ -135,20 +144,26 @@ class Mod extends shapez.Mod {
                 ),
                 originalRotation: 0,
                 rotation: rotation,
+                rotationVariant: 0,
                 variant: "default",
-                rotationVariant: rotation == 0 ? 0 : 1,
             });
         }
 
         /* Places buildings given by the backend as a list solution. */
         function place_entities(root, entities) {
+            console.dir(shapez.gMetaBuildingRegistry)
             for (let e of entities){
-                tryPlaceSimpleBuilding(
-                    root,
-                    buildings[e.type],
-                    e.x, e.y,
-                    e.rotation
+                const building = shapez.gMetaBuildingRegistry.findByClass(
+                    shapez[`Meta${e.type}Building`],
                 )
+                root.logic.tryPlaceBuilding({
+                    origin: new shapez.Vector(e.x, e.y),
+                    building: building,
+                    originalRotation: e.rotation,
+                    rotation: e.rotation,
+                    rotationVariant: 0,
+                    variant: "default",
+                });
             }
         }
 
@@ -273,7 +288,7 @@ class Mod extends shapez.Mod {
                     if (ec.ItemProcessor) return ec.ItemProcessor.type;
                     if (ec.Storage) return "storage";
 
-                    // TODO Balancers are fun
+                    // TODO Balancers are 'fun'
                     // console.log(ec)
                     return "Unknown";
                 };

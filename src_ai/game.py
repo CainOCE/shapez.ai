@@ -9,16 +9,11 @@ Created on Wed Sep 25, 2024 at 13:00:32
 # http://xahlee.info/comp/unicode_arrows.html
 # Note: Shapez.io defines rotation in True North Bearings e.g. URDL or NESW
 
-EMPTY_TILE = '.'
-UNKNOWN_TILE = "?"
-BORDER_TILES = '◼◢◣◥◤'
+EMPTY_TOKEN = '.'
+UNKNOWN_TOKEN = "?"
+BORDER_TOKENS = '◼◢◣◥◤'
 
-ENTITIES = {
-    # Resources
-    "Red": "R",
-    "Green": "G",
-    "Blue": "B",
-
+TOKENS = {
     # Single Entity Structures
     "belt": "↑→↓←↗↘↙↖",
     "sender0": "⮉⮊⮋⮈",   # Underground belt entrance
@@ -110,11 +105,11 @@ class GameState():
             #     print(child)
 
         # 4.  Import Entities
-        c = ENTITIES
+        c = TOKENS
         for e in game_state['entities']:
             print(e)
-            # Select Tile based on entity
-            tile = UNKNOWN_TILE
+            # Select Token based on entity
+            token = UNKNOWN_TOKEN
 
             # TODO I hate this, its hacky and needs a better system.
             if e['type'] == "hub":
@@ -122,32 +117,30 @@ class GameState():
 
             if e['type'] == "belt":
                 if e['direction'] == 'top':
-                    tile = c["belt"][e['rotation']//90]
+                    token = c["belt"][e['rotation']//90]
                 if e['direction'] == 'right':
-                    tile = c["belt"][(e['rotation']//90)+4]
+                    token = c["belt"][(e['rotation']//90)+4]
                 if e['direction'] == 'left':
-                    tile = c["belt"][([7, 4, 5, 6])[e['rotation']//90]]
-                self._place_tile(e['x'], e['y'], tile)
+                    token = c["belt"][([7, 4, 5, 6])[e['rotation']//90]]
+                self._place_token(e['x'], e['y'], token)
 
             if e['type'] == "miner":
-                self._place_tile(e['x'], e['y'], c["miner"][e['rotation']//90])
+                self._place_token(e['x'], e['y'], c["miner"][e['rotation']//90])
 
             if e['type'] == "balancer":
                 if e['rotation'] == 0:
-                    self._place_tile(e['x']+0, e['y']+0, c["balancer"][0])
-                    self._place_tile(e['x']+1, e['y']+0, c["balancer"][1])
+                    self._place_token(e['x']+0, e['y']+0, c["balancer"][0])
+                    self._place_token(e['x']+1, e['y']+0, c["balancer"][1])
                 if e['rotation'] == 90:
-                    self._place_tile(e['x']+0, e['y']+0, c["balancer"][2])
-                    self._place_tile(e['x']+0, e['y']+1, c["balancer"][3])
+                    self._place_token(e['x']+0, e['y']+0, c["balancer"][2])
+                    self._place_token(e['x']+0, e['y']+1, c["balancer"][3])
                 if e['rotation'] == 180:
-                    self._place_tile(e['x']+0, e['y']+0, c["balancer"][4])
-                    self._place_tile(e['x']-1, e['y']+0, c["balancer"][5])
+                    self._place_token(e['x']+0, e['y']+0, c["balancer"][4])
+                    self._place_token(e['x']-1, e['y']+0, c["balancer"][5])
                 if e['rotation'] == 270:
-                    self._place_tile(e['x']+0, e['y']+0, c["balancer"][6])
-                    self._place_tile(e['x']+0, e['y']-1, c["balancer"][7])
-
-        print(self)
-        print(self.show_hub_area())
+                    self._place_token(e['x']+0, e['y']+0, c["balancer"][6])
+                    self._place_token(e['x']+0, e['y']-1, c["balancer"][7])
+        return
 
     def get_chunk(self, x, y):
         """ Returns a chunk given a positional key. """
@@ -161,13 +154,13 @@ class GameState():
         chunks = "\n".join(f"  {repr(chunk)}" for chunk in self.map)
         return f"Current Chunks:  \n{chunks}"
 
-    def _get_tile(self, x, y, tile):
+    def _get_token(self, x, y, token):
         """ Sets the Entity located at a global (x, y) coordinate. """
-        (self.get_chunk(x // 16, y // 16)).place_tile(x % 16, y % 16, tile)
+        (self.get_chunk(x // 16, y // 16)).place_token(x % 16, y % 16, token)
 
-    def _place_tile(self, x, y, tile):
-        """ Places a tile at a global (x, y) coordinate. """
-        (self.get_chunk(x // 16, y // 16)).place_tile(x % 16, y % 16, tile)
+    def _place_token(self, x, y, token):
+        """ Places a token at a global (x, y) coordinate. """
+        (self.get_chunk(x // 16, y // 16)).place_token(x % 16, y % 16, token)
 
     def _place_structure(self, x, y, u, v, structure):
         """
@@ -178,7 +171,7 @@ class GameState():
         for j, row in enumerate(structure):
             for i, char in enumerate(row):
                 if char != ' ':
-                    self._place_tile(x+i, y+j, char)
+                    self._place_token(x+i, y+j, char)
 
     def _rotate_structure(self, structure, rotation=0):
         """ Rotate a model structure by a rotation of 0, 90, 180, 270. """
@@ -203,7 +196,7 @@ class GameState():
             raise ValueError("Rotation must be 0, 90, 180, or 270 degrees.")
 
     def get_entities(self):
-        """ Generate a list of entities for each tile. """
+        """ Generate a list of entities for each token. """
         return
 
     def show_hub_area(self):
@@ -238,12 +231,12 @@ class GameState():
 
 
 class Chunk:
-    """ Defines the chunk as a 16x16 collection of Tiles. """
+    """ Defines the chunk as a 16x16 collection of Tokens. """
     def __init__(self, x=0, y=0):
         self.x, self.y = x, y
         self.width, self.height = 16, 16
-        self.contents = [
-            [EMPTY_TILE for _ in range(self.width)]
+        self.tokens = [
+            [EMPTY_TOKEN for _ in range(self.width)]
             for _ in range(self.height)
         ]
 
@@ -255,17 +248,17 @@ class Chunk:
         """ Representation when the chunk is used as a string. """
         return self.display()
 
-    def place_tile(self, x, y, tile):
-        """ Sets the tile located at a chunk local (x, y) coordinate. """
-        self.contents[y][x] = tile
+    def place_token(self, x, y, token):
+        """ Sets the token located at a chunk local (x, y) coordinate. """
+        self.tokens[y][x] = token
 
-    def get_tile(self, x, y):
-        """ Gets the tile located at a chunk local (x, y) coordinate. """
-        return self.contents[y][x]
+    def get_token(self, x, y):
+        """ Gets the token located at a chunk local (x, y) coordinate. """
+        return self.tokens[y][x]
 
     def display(self, out=""):
         """ Representation with additional helper information.  """
-        bt = BORDER_TILES
+        bt = BORDER_TOKENS
 
         def hval(x):
             """ Simple helper that returns a formatted hex number. """
@@ -285,7 +278,7 @@ class Chunk:
         col_spacer = '   '
 
         # Generate Terminal Grid Representation
-        for y, row in enumerate(self.contents):
+        for y, row in enumerate(self.tokens):
             out += row_spacer if (y > 0 and y % 4 == 0) else ''  # Spacing
             for x, val in enumerate(row):
                 out += f"{bt[0]}  {hval(y)} " if x == 0 else ''  # Row Hex
