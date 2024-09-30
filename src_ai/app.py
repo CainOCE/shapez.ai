@@ -28,8 +28,12 @@ class ShapezAI(Flask):
         def on_query():
             """ Handles incoming queries sent by the game instance. """
             # Update GameState and Query Overseer
-            self.game.update(request.json)
+            self.game.import_game_state(request.json)
             response = self.overseer.query(request.json)
+
+            # Show a nice output to us after a query.
+            print(self.game.display_hub())
+
             return jsonify(response)
 
 

@@ -272,7 +272,7 @@ class Mod extends shapez.Mod {
 
             // 4.  Extract Entities
             const E = gameState["core"]["root"]["entityMgr"]["entities"]
-            let entities = E.map(e => {
+            let entities = E.reduce((out, e) => {
                 let ec = e.components;
 
                 // Define Entity by Attached Components
@@ -294,8 +294,7 @@ class Mod extends shapez.Mod {
                 };
 
                 /* Clean the entity description for the backend here. */
-                return {
-                    uid: e.uid,
+                const entity = {
                     type: getType(ec),
                     x: ec.StaticMapEntity.origin.x,
                     y: ec.StaticMapEntity.origin.y,
@@ -303,7 +302,10 @@ class Mod extends shapez.Mod {
                     direction: !!ec.Belt ? ec.Belt.direction : null,
                     mode: !!ec.UndergroundBelt ? ec.UndergroundBelt.mode : null,
                 };
-            });
+
+                out[e.uid] = entity;
+                return out;
+            }, {});
 
             // Fin. Return packaged gameState.
             return {
