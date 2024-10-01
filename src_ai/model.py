@@ -46,15 +46,19 @@ class Model:
         """ Returns the name of the current model. """
         return self.name
 
-    def step(self):
-        """ Advances the model one step. """
-        return True
-
     def train(self):
         """ Advances the model multiple steps to complete a training cycle. """
         return None
 
-    def query(self, scenario):
+    def validate(self):
+        """ Checks a given solution and assigns points to it. """
+        return None
+
+    def _step(self, state):  # pylint: disable=W0613
+        """ Advances the model one step. """
+        return True
+
+    def query(self, scenario):  # pylint: disable=W0613
         """ Queries the Model for a solution to a specific scenario. """
         return None
 
@@ -219,7 +223,7 @@ class RhysArchitect(Model):
 
             # Manually Reset the game for a training episode.
             seed, state = self.game.reset()
-            # TODO Can we reset(lvl=1) for targeted training?
+            # TODO Can we game.reset(lvl=1) for targeted training?
 
             # Conduct X _steps() per episode.
             for _ in range(1, self.max_steps_per_episode):
@@ -257,7 +261,6 @@ class RhysArchitect(Model):
 
     def _step(self, state):
         """ Advances the model one step. """
-        super().step()
 
         # Use epsilon-greedy for exploration
         if (
