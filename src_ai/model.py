@@ -27,14 +27,14 @@ class Model:
         self.model = {}
 
     def save(self, obj):
-        """ Saves the current model. """
+        """ Saves the current model as a JSON schema file. """
         os.makedirs(MODEL_STORAGE_PATH, exist_ok=True)
         path = f"{MODEL_STORAGE_PATH}/{self.name}_{self.version}.json"
         with open(path, 'w', encoding='utf-8') as json_file:
             json.dump(obj, json_file, indent=4)
 
     def load(self, file):
-        """ Loads a model saved as a JSON schema. """
+        """ Loads a model saved as a JSON schema file. """
         with open(file, 'r', encoding='utf-8') as json_file:
             self.model = json.load(json_file)
 
