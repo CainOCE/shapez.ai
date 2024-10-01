@@ -4,30 +4,40 @@ Created on Tue Aug 13, 2024 at 09:55:35
 
 @authors: Cain Bruhn-Tanzer, Rhys Tyne
 """
-
-# TEMP:  Correct module imports for subfolder structure src_ai/app.py
-import sys
-import os
-from signals import ListenServer
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from game import GameState
 from model import Overseer, Architect
-# from model import rhys_model
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+
+class ShapezAI(Flask):
+    """ App built atop FLASK to provide a REST API for the python backend. """
+    def __init__(self):
+        super().__init__(__name__)
+        CORS(self)
+        self._routing()
+
+        self.game = GameState()
+        self.overseer = Overseer()
+        self.architect = Architect()
+
+    def _routing(self):
+        """Sets up the routes for the Flask app."""
+
+        @self.route('/query_model', methods=['POST'])
+        def on_query():
+            """ Handles incoming queries sent by the game instance. """
+            # Update GameState and Query Overseer
+            self.game.import_game_state(request.json)
+            response = self.overseer.query(request.json)
+
+            # Show a nice output to us after a query.
+            print(self.game.display_hub())
+
+            return jsonify(response)
 
 
 if __name__ == "__main__":
     print("Running the Shapez.ai module...")
-
-    # Start our AI Model Classes
-    overseer_ai = Overseer()
-    architect_ai = Architect()
-    for model in [overseer_ai, architect_ai]:
-        STATE = 'Active' if model.is_alive() else 'Inactive'
-        print(f"{model.get_name()} is {STATE}")
-
-    # TODO:  Test and merge the rhys_model
-    # rhys_model()
-
-    # Test our Send and Receive Functions
-    sigs = ListenServer()
-    sigs.start()
-    sigs.send()
+    app = ShapezAI()
+    app.run(debug=False)

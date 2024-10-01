@@ -1,160 +1,348 @@
-import gymnasium as gym
-from gym import spaces
-import numpy as np
-import copy
-
+# -*- coding: utf-8 -*-
 """
-set up game in simple version like gym
-- need a step function
--
+Created on Wed Sep 25, 2024 at 13:00:32
+
+@authors: Rhys Tyne, Cain Bruhn-Tanzer
 """
+# A lot of unicode in this one, see below for suggestions.
+# https://www.w3.org/TR/xml-entity-names/025.html
+# http://xahlee.info/comp/unicode_arrows.html
+# Note: Shapez.io defines rotation in True North Bearings e.g. URDL or NESW
 
-"""
-if we could make a simple python copy of the game could be useful... idk discuss w others
+TERM_COLOUR = {
+    'r': "\033[41m",
+    'g': "\033[42m",
+    'b': "\033[44m",
+    'X': "\033[48;5;237m",
+}
+TERM_COLOUR_RESET = "\033[0m"
 
-during training will we require the chrome to be running, will make training super slow
-this is a where our version of the game could run much faster
+EMPTY_TOKEN = '.'
+UNKNOWN_TOKEN = "?"
+BORDER_TOKENS = '◼◢◣◥◤'
 
-save model at end??
+TOKENS = {
+    # Single Entity Structures with Direction
+    "belt": "↑→↓←",
+    "beltCnrL": "↖↗↘↙",
+    "beltCnrR": "↗↘↙↖",
+    "sender0": "⮉⮊⮋⮈",   # Underground belt entrance
+    "receiver0": "⮉⮊⮋⮈",    # Underground belt exit
+    "sender1": "⮉⮊⮋⮈",
+    "receiver1": "⮉⮊⮋⮈",
+    "miner": "▲▶▼◀",
+    "rotator": "⮰⮱⮲⮳⮴⮵⮶⮷⮰⮱⮲⮳⮴⮵⮶⮷",  # 90 Right
+    "rotatorCCW": "⮰⮱⮲⮳⮴⮵⮶⮷⮰⮱⮲⮳⮴⮵⮶⮷",   # CCW -> Counter Clockwise 90
+    "rotator180": "⮰⮱⮲⮳⮴⮵⮶⮷⮰⮱⮲⮳⮴⮵⮶⮷",
+    # "Merger": "╦╣╩╠",
+    # "Splitter": "⬀⬂⬃⬁",   # Points to the ejection corner
+    "trash": "TTTT",
+    "reader": 'OOOO',
+}
 
-simplify as much as possible:
-- extractors (1)
-- belts (2)
-- resource (-1, -2, -3, -4) -- or maybe some hash code like describing the products
-- HUB (3)
-- empty (0)
+STRUCTS = {
+    # Structures
+    "hub": [
+        "╔HUB",
+        "║  ║",
+        "║  ║",
+        "╚══╝"
+    ],
+    # "balancer": "⮤⮥⮣⮡⮦⮧⮠'⮢",
+    "balancer": "1234",
+    "cutter": ["⭻🠴"],
+    "cutterQuad": ["⭻🠴🠴🠴"],
+    "stacker": ["◰🠴", "◳🠵", "◲🠶", "◱🠷"],
+    "mixer": ["◴🠴", "◷🠵", "◶🠶", "◵🠷"],
+    "painter": ["⮙🠵", "??", "??", "??"],
+    "painterDouble": ["⮙🠵", "??", "??", "??"],
+    "painterQuad": ["⮙🠵", "??", "??", "??"],
+    "storage": [
+        ["S⇑",
+         "╚╝"],
+        ["╔S",
+         "╚⇒"],
+        ["╔╗",
+         "⇓S"],
+        ["⇐╗",
+         "S╝"],
+    ]
 
-"""
-
-class shapezGym(gym.Env):
-
-    # buildings is some dictionary like
-    # {0: "empty", 1: "HUB", 2: "EXTRACTOR", ...}
-    # account for resources
-    # -1 --> triangle
-    # -2 --> square
-
-    # need some way of passing goal information into program at each state
-    # could pre program in goals if they are always the same
-    # goals = [(("triangles", 10)), ... (("half-circle-half-sqaure", 10))]
-    # unless find this information in the soruce code, probably more realistic
-
-    # TODO:
-    # 1. encode products (likely some like hex/hash number describing all possible products)
-    #       - 1crcrcrcr -- red circle, idk just example
-    # 2. write code to check if something was produced since last action -- kind of links with idea below
-    # 3. find a way to account for which state gets reward added, given products take
-    #    some time to arrive at HUB --- may cause slight misoptimisation
-    #       - even better if we could have a list of products currently on belt
-    #       - then another check to see what hits HUB
-
-    def __init__(self, buildings, size, state, goals):
-
-        self.buildings = buildings # dictionary of buildings and a given index
-        self.size = size # side length of the "board", centre around the HUB
-        self.goals = goals # dictionary containing the goals of the game (or some small subset of goals)
-        self.num_actions = len(buildings.keys()) # number of possible values of each cell
-        self.state = state
-        # example from chess
-        #self.observation_space = spaces.Box(-16, 16, (8, 8))  # board 8x8
-        #self.action_space = spaces.Discrete(64 * 16 + 4)
-
-
-
-        self.observation_space = spaces.Box(0, self.num_actions, (size, size))
-        self.action_space = spaces.Discrete(size**2 * self.num_actions)
-
-
-
-    """
-    # naive approach
-    # any building on any possible grid -- (size^2 * num_actions)
-    ###
-    # my idea: lmk if you can think of better
-    # if resource --> extractor
-    # if empty --> belt
-    # if belt --> delete
-    # if building --> delete
-    """
-    def get_possible_moves(self, state):
-        # to be implemented
-        actions = set()
-
-        for i in state:
-            for j in state[0]:
-                cell_val = state[i][j]
-                if cell_val == 'empty':
-                    actions.add((i, j, 'belt'))
-                if cell_val == 'resource':
-                    actions.add((i,j,'extractor'))
-
-        return actions
+    # TODO Wire Structures as an advanced goal? Req. Separate map layer
+}
 
 
-    def check_produced(self):
-        # check if anything has reached the HUB
-        # alternatviely, check what is currently on belts
-        pass
+class GameState():
+    """ Defines the gameState object in a form malleable my an AI Model.  """
+    def __init__(self, chunks=None):
+        # General Game State Information
+        self.seed = None
+        self.level = None
+        self.goal = None
 
-    def update_goal(self, product):
+        # ECS Syle Lists
+        self.entities = {}
+        self.chunks = []
+        self.resources = {}
 
-        # minus from product goal
-        self.goals.update({product: self.goals.get(product) - 1})
+    def __str__(self):
+        """ Representation when the game class is used as a string. """
+        # TODO Give a brief description of the current goal.
+        out = f"GAME: [{self.seed}] - LVL {self.level} - GOAL: [TBD]\n"
+        out += f"  - {len(self.entities)} Currnet Entities\n"
+        out += f"  - {len(self.chunks)} Active Chunks\n"
+        out += f"  - {len(self.resources)} Visible Resource Tiles"
+        return out
 
-        # if zero more required, remove
-        if self.goals.get(product) == 0:
-            self.goals.pop(product)
+    def import_game_state(self, game_state):
+        """ Imports the ECS Entities from the frontend gamestate
+            and assigns tokens or structures to them for the
+            model to process. """
+        print("Incoming Python Update ->:")
+
+        # 1.  Import Seed & Active ChunkIDs
+        if self.seed is None:
+            self.seed = game_state['seed']
+        self.chunks = game_state['map'].keys()
+
+        # 2.  Import Current Level and Goals
+        if self.level is None:
+            self.level = game_state['level']
+        if self.goal is None:
+            self.goal = game_state['goal']
+
+        # 3.  Import Game entities
+        for uid, e in game_state['entities'].items():
+            # GUARD:  Entity already exists on the backend
+            if uid in self.entities:
+                continue
+
+            # Add some positional information to the entity
+            e["local_x"] = e["x"] % 16
+            e["local_y"] = e["y"] % 16
+            e["chunk_x"] = e["x"] // 16
+            e["chunk_y"] = e["y"] // 16
+
+            # Single Token Entities
+            token = UNKNOWN_TOKEN
+            if e['type'] in TOKENS:
+                # Use the token in our TOKENS mapping
+                token = TOKENS[e['type']][e['rotation']//90]
+
+                # Special case of belt corners
+                if e['type'] == "belt":
+                    if e['direction'] == 'left':
+                        token = TOKENS["beltCnrL"][e['rotation']//90]
+                    if e['direction'] == 'right':
+                        token = TOKENS["beltCnrR"][e['rotation']//90]
+                e['token'] = token
+
+            # Handle Structure Entities
+            struct = UNKNOWN_TOKEN
+            if e['type'] in STRUCTS:
+                if e['type'] == "hub":
+                    e['token'] = "H"
+                # self._place_structure(e['x'], e['y'], 0, 0, TOKENS["hub"])
+                if e['type'] == "balancer":
+                    if e['rotation'] == 0:
+                        struct = STRUCTS["balancer"][0]
+                    if e['rotation'] == 90:
+                        struct = STRUCTS["balancer"][2]
+                    if e['rotation'] == 180:
+                        struct = STRUCTS["balancer"][4]
+                    if e['rotation'] == 270:
+                        struct = STRUCTS["balancer"][6]
+                e['struct'] = struct
+                # TODO Think on the above section
+
+            # Commit Entity
+            self.entities[uid] = e
+
+        # 3b. Remove all 'dead' entities.
+        for uid in list(self.entities.keys()):
+            if uid not in game_state['entities'].keys():
+                del self.entities[uid]
+
+        # 4.  Import all resources
+        for id, chunk in game_state['map'].items():
+            X, Y = map(int, id.split('|'))
+            for x, row in enumerate(chunk["resources"]):
+                for y, val in enumerate(row):
+                    # GUARD:  No empty tiles
+                    if val is None:
+                        continue
+
+                    if val['_type'] == 'shape':
+                        token = 'X'
+                        value = val['definition']['cachedHash']
+
+                    if val['_type'] == 'color':
+                        token = val['color'][0]
+                        value = val['color']
+
+                    # Pack our resources into a list
+                    self.resources[f"{X*16+x}|{Y*16+y}"] = {
+                        "x": X*16+x, "y": Y*16+y,
+                        "local_x": x, "local_y": y,
+                        "chunk_x": X, "chunk_y": Y,
+                        "token": token,
+                        "type": val['_type'],
+                        "value": value,
+                    }
+
+        return
+
+    def get_chunk(self, X=0, Y=0):
+        """ Returns the array output for a given chunk. """
+        # Construct an empty grid to hold our tokens
+        tokens = [[EMPTY_TOKEN for _ in range(16)] for _ in range(16)]
+
+        # Filter resources within the chunk bounddaries
+        local_resources = {}
+        for uid, resource in self.resources.items():
+            if resource["chunk_x"] == X and resource["chunk_y"] == Y:
+                # Add Resources to the local list
+                local_resources[uid] = resource
+
+                # Add resource token to grid with colour
+                token = resource["token"]
+                token = f"{TERM_COLOUR[token]}{token}{TERM_COLOUR_RESET}"
+                tokens[resource["local_y"]][resource["local_x"]] = token
+
+        # Filter entities within the chunk boundaries
+        local_entities = {}
+        for uid, entity in self.entities.items():
+            if entity["chunk_x"] == X and entity["chunk_y"] == Y:
+                print(entity)
+                # Add Entities to the local list
+                local_entities[uid] = entity
+
+                # Add resource token to grid
+                tokens[entity["local_y"]][entity["local_x"]] = entity["token"]
+
+        return tokens
+
+    def display_chunk(self, X=0, Y=0, out=""):
+        """ Chunk representation with additional highlights and display. """
+        print(f"Constructing Chunk Display of {X}|{Y}")
+        tokens = self.get_chunk(X, Y)
+
+        # Helper Function and Constants
+        def hval(x):
+            """ Simple helper that returns a formatted hex number. """
+            return hex(x)[2:].upper()
+        bt = BORDER_TOKENS
+
+        # Generate a title line with padded border
+        title = f"Chunk {str(X).rjust(3)}|{str(Y).ljust(3)}"
+        header = f"{bt[1]} {f"{bt[0]} "*7} {title} {f" {bt[0]}"*7} {bt[2]}\n"
+
+        # Pretty Hex Column Header
+        out += f"{bt[0]}  " + "".join(
+            [f"{'   ' if x % 4 == 0 else ' '}" + hval(x) for x in range(0, 16)]
+            ) + f"   {bt[0]}\n"
+
+        # Some Spacers for clarity
+        row_spacer = f"{bt[0]} {40*' '}    {bt[0]}\n"
+        col_spacer = '   '
+
+        # Generate Terminal Grid Representation
+        for y, row in enumerate(tokens):
+            out += row_spacer if (y > 0 and y % 4 == 0) else ''  # Spacing
+            for x, val in enumerate(row):
+                out += f"{bt[0]}  {hval(y)} " if x == 0 else ''  # Row Hex
+                out += col_spacer if (x > 0 and x % 4 == 0) else ' '  # Spacing
+                out += val  # Print Value at Point
+            out += f"   {bt[0]}\n"  # Print Value at Point
+
+        # Footer Border
+        footer = f"{bt[3]}{22*f' {bt[0]}'} {bt[4]}"
+        return f"{header}{out}{footer}"
+
+    def display_hub(self):
+        """ Shows the chunks around the hub area. """
+        # Split the strings into lines
+        def merge_output(str1, str2):
+            """ Merges two output statements. """
+            merged_lines = []
+
+            lines1 = str1.splitlines()
+            lines2 = str2.splitlines()
+            max_lines = max(len(lines1), len(lines2))
+
+            for i in range(max_lines):
+                line1 = lines1[i] if i < len(lines1) else ''
+                line2 = lines2[i] if i < len(lines2) else ''
+
+                # Merge the lines with the separator
+                merged_lines.append(line1 + " " + line2)
+            return '\n'.join(merged_lines)
+
+        out = merge_output(
+            self.display_chunk(-1, -1),
+            self.display_chunk(0, -1)
+        )
+        out += '\n'
+        out += merge_output(
+            self.display_chunk(-1, 0),
+            self.display_chunk(0, 0)
+        )
+        return out
+
+    def list_chunks(self):
+        """ Lists all chunks stored in the game class. """
+        if not self.chunks:
+            return "Current Chunks:  [None]\n"
+        chunks = "\n".join(f"  {chunk}" for chunk in self.chunks)
+        return f"Current Chunks:  \n{chunks}"
+
+    # def _get_token(self, x, y):
+    #     """ Gets the Entity located at a global (x, y) coordinate. """
+    #     # TODO:  There should only be one.
+    #     return None
+
+    # def _place_resource(self, x, y, resource):
+    #     """ Colours the tile based on the available resources. """
+    #     if resource in "rgb":
+    #         self._place_token(x, y, resource)
+
+    # def _place_token(self, x, y, token):
+    #     """ Places a token at a global (x, y) coordinate. """
+    #     (self.get_chunk(x // 16, y // 16)).place_token(x % 16, y % 16, token)
+
+    # def _place_structure(self, x, y, u, v, structure):
+    #     """
+    #     Places a structure at a global coordinate (x, y)
+    #     with offset (u, v).
+    #     """
+    #     print(f"Placing structure: {structure} at ({x}, {y}) += ({u}, {v})")
+    #     for j, row in enumerate(structure):
+    #         for i, char in enumerate(row):
+    #             if char != ' ':
+    #                 self._place_token(x+i, y+j, char)
+
+    # def _rotate_structure(self, structure, rotation=0):
+    #     """ Rotate a model structure by a rotation of 0, 90, 180, 270. """
+
+    #     def clockwise(array):
+    #         """ Rotate the model structure 90 degrees clockwise."""
+    #         return [''.join(reversed(col)) for col in zip(*array)]
+
+    #     def counterclockwise(array):
+    #         """ Rotate the modelstructure 90 degrees counterclockwise."""
+    #         return [''.join(col) for col in reversed(list(zip(*array)))]
+
+    #     if rotation == 0:
+    #         return structure
+    #     elif rotation == 90:
+    #         return clockwise(structure)
+    #     elif rotation == 180:
+    #         return clockwise(clockwise(structure))
+    #     elif rotation == 270:
+    #         return counterclockwise(structure)
+    #     else:
+    #         raise ValueError("Rotation must be 0, 90, 180, or 270 degrees.")
 
 
-
-
-
-
-
-    # update the goals because all previous goals have been met
-    # maybe even smarter to do this in 2 or 3 level batches???
-    def update_goals(self, new_goals):
-
-        for goal in new_goals: # list of goals to be added
-            self.goals.update(goal)
-
-
-    def step(self, state, action):
-        # action should already be legal
-
-        i, j, m = action
-        state[i][j] = m
-        reward = 0
-
-        produced = self.check_produced()
-        if produced in self.goals.keys():
-            ## this wont reward properly as it will reward some state some number of actions
-            ## after the last building placed was involved
-            ## in bad cases this will negatively reward model
-            ## eg. 1. product travelling to HUB
-            #      2. belt behind product is deleted
-            #      3. no more product can come through
-            #      4. but first state after product gets to HUB gets reward
-
-            # could reduce probability of deleting belt,
-            # or increase probability of doing action in a free space?
-
-            ######
-            # not sure how to officially solve this without manually checking a
-            # path still exists. seems slow
-            #
-            # the case described above will be rareish, at least for small factory
-            # relative to size
-            ####
-
-            # if thing has reach the HUB --> update_goal
-            self.update_goal(produced)
-
-            reward += 1 # just add one if something produced is in goals
-
-        return state, reward
-
-
-
-
-
+if __name__ == "__main__":
+    print("Please call this module as a dependency or import.")

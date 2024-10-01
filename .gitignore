@@ -1,3 +1,7 @@
+# Shapez.AI ignores
+src_ai/__pycache__/
+src_ai/tests/__pycache__/
+
 # Logs
 logs
 *.log

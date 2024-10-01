@@ -1,5 +1,10 @@
 {
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
-    "files.trimTrailingWhitespace": true,
-    "editor.formatOnSave": true
+    "python.testing.pytestArgs": [
+        "src_ai/tests"
+    ],
+    "python.autoComplete.extraPaths": [
+        "./src_ai"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true
 }
