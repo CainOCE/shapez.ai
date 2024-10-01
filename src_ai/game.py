@@ -31,9 +31,9 @@ TOKENS = {
     "sender1": "⮉⮊⮋⮈",
     "receiver1": "⮉⮊⮋⮈",
     "miner": "▲▶▼◀",
-    "rotator": "⮰⮱⮲⮳⮴⮵⮶⮷⮰⮱⮲⮳⮴⮵⮶⮷",  # 90 Right
-    "rotatorCCW": "⮰⮱⮲⮳⮴⮵⮶⮷⮰⮱⮲⮳⮴⮵⮶⮷",   # CCW -> Counter Clockwise 90
-    "rotator180": "⮰⮱⮲⮳⮴⮵⮶⮷⮰⮱⮲⮳⮴⮵⮶⮷",
+    "rotator": "⮰⮱⮲⮳",      # 90 Right
+    "rotatorCCW": "⮰⮱⮲⮳",   # CCW -> Counter Clockwise 90
+    "rotator180": "⮰⮱⮲⮳⮴",
     # "Merger": "╦╣╩╠",
     # "Splitter": "⬀⬂⬃⬁",   # Points to the ejection corner
     "trash": "TTTT",
