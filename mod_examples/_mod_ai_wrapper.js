@@ -252,11 +252,6 @@ class Mod extends shapez.Mod {
                 definition: G.definition,
                 required: G.required,
             });
-            // TODO:  Defining a goal
-            /**
-             * Should we judge the model on actual parts per tick, or on a
-             * cost vs complexity model.
-             */
 
             // 3.  Extract Map (By Chunks for optimal resource scanning)
             const M = gameState["core"]["root"]["map"]["chunksById"];
@@ -325,7 +320,7 @@ class Mod extends shapez.Mod {
          * @returns {type} None
          */
         async function backendRequest(root, gameState) {
-            simpleNotification(root, "Querying AI Model...")
+            update_indicator("yellow");
             var request = await fetch("http://127.0.0.1:5000/query_model", {
                 method: "POST",
                 headers: {
@@ -335,17 +330,50 @@ class Mod extends shapez.Mod {
             })
                 .then((response) => response.json())
                 .then((data) => {
-                    simpleNotification(root, "AI Model Query Complete.")
                     console.log("Return Data:");
                     console.dir(data)
                     place_entities(root, data)
+                    update_indicator("lightgreen");
                 })
                 .catch((error) => {
-                    simpleNotification(root, `Failed to Query Model.`);
                     console.error("Request failed:", error);
+                    update_indicator("red");
                 });
         }
 
+        /* Add AI Status indicator to bottom right of the Game UI */
+        let indicator;
+        this.modInterface.registerCss(`
+            #shapez_ai_indicator {
+                position: absolute; background: red;
+                bottom: calc(10px * var(--ui-scale));
+                right: calc(10px * var(--ui-scale));
+                width: 16px; height: 16px; z-index: 1000;
+                border: 2px solid white; border-radius: 50%; padding: 00px;
+                display: flex; align-items: center; justify-content: center;
+            }
+        `);
+        this.signals.stateEntered.add(state => {
+            if (state instanceof shapez.InGameState) {
+                // Create a div to house our element
+                indicator = document.createElement("div");
+                indicator.id = "shapez_ai_indicator";
+                document.body.appendChild(indicator);
 
+                // Cleanup when leaving the Game State
+                this.signals.stateExited.add(exitState => {
+                    if (exitState instanceof shapez.InGameState) {
+                        document.body.removeChild(indicator);
+                        indicator = null;
+                    }
+                });
+
+            }
+        });
+
+        /* Updates the status indicators colour */
+        function update_indicator(col) {
+            indicator.style.background = col;
+        }
     }
 }
