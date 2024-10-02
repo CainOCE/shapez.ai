@@ -10,25 +10,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     default-jre \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-    # npm install --global gulp-cli
 
 # Install Python
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* \
-    pip install --no-cache-dir --break-system-packages tensorflow-aarch64 keras Flask Flask-Cors
+    && rm -rf /var/lib/apt/lists/*
+RUN pip install --break-system-packages Flask Flask-Cors keras
+RUN pip install --break-system-packages tensorflow-aarch64 keras
 
-# Check CPU architecture and install the appropriate version of TensorFlow
-# RUN CPU_ARCH=$(uname -m) && \
-#     if [[ "$CPU_ARCH" == "x86_64" ]]; then \
-#         pip install tensorflow==2.12.0; \
-#     elif [[ "$CPU_ARCH" == "aarch64" ]]; then \
-#         pip install tensorflow-aarch64==2.12.0; \
-#     elif [[ "$CPU_ARCH" == "ARM64" ]]; then \
-#         pip install tensorflow-aarch64==2.12.0; \
-#     else \
-#         echo "Unsupported architecture: $CPU_ARCH"; \
-#         exit 1; \
-#     fi
+# Build the project
+# RUN npm update
+# RUN npm install gulp-cli
+# RUN yarn
+# RUN cd gulp
+# RUN yarn gulp
