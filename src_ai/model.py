@@ -2,10 +2,11 @@
 """
 Created on Tue Aug 13, 2024 at 09:55:41
 
-@author: Cain Bruhn-Tanzer
+@author: Cain Bruhn-Tanzer, Rhys Tyne
 """
 
 import os
+import sys
 import json
 import keras
 import numpy as np
@@ -46,7 +47,7 @@ class Model:
         """ Returns the name of the current model. """
         return self.name
 
-    def train(self):
+    def train(self, game):
         """ Advances the model multiple steps to complete a training cycle. """
         return None
 
@@ -85,6 +86,7 @@ class Overseer(Model):
             - Build a response from the overseer
             - Add in a few queries of Architect if necessary.
         """
+        # Trigger something in the model based on the gameState
         temp_response = []
 
         # Place a strip of belts
@@ -120,39 +122,15 @@ class Overseer(Model):
 
 
 class Architect(Model):
-    """ Model for designing tight-packed, 'tall' sub-unit factory layouts.
+    """ Model for designing sub-unit factory layouts. """
 
-    Requirements:
-        - Given a scenario, generate an appropriate factory layout.
-    """
-
-    def __init__(self):
-        super().__init__()
-        self.name = "Architect"
-        self.version = "0.1.0"
-
-    def query(self, scenario):
-        """ Returns a recommended action when given a scenario. """
-        return None
-
-
-class RhysArchitect(Model):
-    """ Model for designing tight-packed, 'tall' sub-unit factory layouts. """
-
-    def __init__(self, game, seed=42):
+    def __init__(self, seed=42):
         super().__init__()
         self.name = "RhysArchitect"
-        self.version = "0.2.0"
-
-        self.game = game
+        self.version = "0.3.0"
         self.seed = seed
-
-        self.action_space = [1, 2, 3, 4]
-        self.num_actions = len(self.action_space)
-
-        # Create the Deep Q Models
-        self.model = self.create_q_model()
-        self.model_target = self.create_q_model()
+        self.model = {}
+        self.target = {}
         self.optimiser = keras.optimizers.Adam(learning_rate=0.0001)
 
         # Chosen Hyperparameters
@@ -164,6 +142,15 @@ class RhysArchitect(Model):
         self.batch_size = 32
         self.max_steps_per_episode = 10000
         self.max_episodes = 10
+
+        # Training Values
+        self.epsilon_random_frames = 50000  # Random Action Frames
+        self.epsilon_greedy_frames = 1000000.0  # Exploration Frames
+        self.max_memory_length = 100  # Maximum replay length
+        # TODO:  Deepmind Suggests 100,000 memory max, significant memory usage
+        self.update_after_actions = 4  # Train Model every X Actions
+        self.update_target_network = 10000  # Network Update Target
+        self.loss_function = keras.losses.Huber()  # huber loss for stability
 
         # Experience replay buffers
         self.action_history = []
@@ -178,16 +165,7 @@ class RhysArchitect(Model):
         self.episode_count = 0
         self.frame_count = 0
 
-        # Training Values
-        self.epsilon_random_frames = 50000  # Random Action Frames
-        self.epsilon_greedy_frames = 1000000.0  # Exploration Frames
-        self.max_memory_length = 100  # Maximum replay length
-        # TODO:  Deepmind Suggests 100,000 memory max, significant memory usage
-        self.update_after_actions = 4  # Train Model every X Actions
-        self.update_target_network = 10000  # Network Update Target
-        self.loss_function = keras.losses.Huber()  # huber loss for stability
-
-    def create_q_model(self):
+    def create_q_model(self, actions):
         """ Creates a Deep Q Style Model as seen in the deepmind paper. """
         # See https://keras.io/examples/rl/deep_q_network_breakout/
         return keras.Sequential(
@@ -207,29 +185,45 @@ class RhysArchitect(Model):
                 layers.Conv2D(64, 3, strides=1, activation="relu"),
                 layers.Flatten(),
                 layers.Dense(512, activation="relu"),
-                layers.Dense(self.num_actions, activation="linear"),
+                layers.Dense(actions, activation="linear"),
             ]
         )
 
-    def train(self):
+    def train(self, game):
         """ Begins the model training loop. (episode) """
+        print("Training RhysModel:")
 
-        # Setup our training episod
-        episode_reward = 0
+        # Key Game Values
+        seed = game.get_seed()
+        action_space = game.get_action_space()
+
+        # Create the Deep Q Models
+        print(" -> Creating Deep Q Model & Target Model")
+        self.model = self.create_q_model(len(action_space))
+        self.target = self.create_q_model(len(action_space))
 
         # Begin a training episode
+        print(" -> Begin Training Loop")
+        episode_reward = 0
         while not self.validate():
             self.episode_count += 1
+            sys.stdout.write(f"\rTraining [{self.episode_count}]")
+            sys.stdout.flush()
+
+            # Clear the line after completion
+            # sys.stdout.write("\r" + " " * 50 + "\r")  # Clear the line
+            # sys.stdout.flush()
 
             # Manually Reset the game for a training episode.
-            seed, state = self.game.reset()
-            # TODO Can we game.reset(lvl=1) for targeted training?
+            game.reset()  # TODO can we game.reset(lvl=1) to target train?
+            seed = game.get_seed()
+            state = game.get_region(-18, -18, 36, 36)
 
             # Conduct X _steps() per episode.
-            for _ in range(1, self.max_steps_per_episode):
-                self.frame_count += 1
-                if self._step(state):
-                    break
+            # for _ in range(1, self.max_steps_per_episode):
+            #     self.frame_count += 1
+            #     if self._step(game, state, action_space):
+            #         break
 
             # Update running reward to check condition for solving
             self.episode_reward_history.append(episode_reward)
@@ -240,7 +234,7 @@ class RhysArchitect(Model):
         # Save our model and action history.
         self.save({
             "model": self.model,
-            "target": self.model_target,
+            "target": self.target,
             "actions:": self.action_history
         })
 
@@ -259,8 +253,9 @@ class RhysArchitect(Model):
             return True
         return False
 
-    def _step(self, state):
+    def _step(self, game, state, actions):
         """ Advances the model one step. """
+        num_actions = len(actions)
 
         # Use epsilon-greedy for exploration
         if (
@@ -268,7 +263,7 @@ class RhysArchitect(Model):
             self.epsilon > np.random.rand(1)[0]
         ):
             # Take random action
-            action = np.random.choice(self.num_actions)
+            action = np.random.choice(num_actions)
         else:
             # Predict action Q-values
             # From environment state
@@ -283,7 +278,7 @@ class RhysArchitect(Model):
         self.epsilon = max(self.epsilon, self.epsilon_min)
 
         # Apply the sampled action in our environment
-        state_next, reward, goal = self.game.step(action)
+        state_next, reward, goal = game.validate()
         state_next = np.array(state_next)
         self.running_reward += reward
 
@@ -318,7 +313,7 @@ class RhysArchitect(Model):
 
             # Build the updated Q-values for the sampled future states
             # Use the target model for stability
-            future_rewards = self.model_target.predict(state_next_sample)
+            future_rewards = self.target.predict(state_next_sample)
             # Q value = reward + discount factor * expected future reward
             updated_q_values = rewards_sample + self.gamma * keras.ops.amax(
                 future_rewards, axis=1
@@ -328,7 +323,7 @@ class RhysArchitect(Model):
             updated_q_values = updated_q_values*(1-goal_sample) - goal_sample
 
             # Create a mask so we only calculate loss on the updated Q-values
-            masks = keras.ops.one_hot(action_sample, self.num_actions)
+            masks = keras.ops.one_hot(action_sample, num_actions)
 
             with tf.GradientTape() as tape:
                 # Train the model on the states and updated Q-values
@@ -351,7 +346,7 @@ class RhysArchitect(Model):
 
         if self.frame_count % self.update_target_network == 0:
             # update the the target network with new weights
-            self.model_target.set_weights(self.model.get_weights())
+            self.target.set_weights(self.model.get_weights())
             # Log details
             template = "running reward: {:.2f} at episode {}, frame count {}"
             print(template.format(

@@ -8,6 +8,10 @@ const METADATA = {
     description: "Communicates via REST API with a python backend.",
     minimumGameVersion: ">=1.5.0",
 };
+/*
+Created on Tue Aug 13, 2024 at 09:55:35
+@authors: Cain Bruhn-Tanzer, Shannon Searle, Ryan Miles
+*/
 
 const resources = {
     // Colours
@@ -75,18 +79,6 @@ class Mod extends shapez.Mod {
             },
         });
 
-        /* Register "Trigger Function" keybinding */
-        this.modInterface.registerIngameKeybinding({
-            id: "shapez_ai_testt_function_trigger",
-            keyCode: shapez.keyToKeyCode("F"),
-            translation: "trigger_test_function_event",
-            modifiers: { shift: true, },
-            handler: root => {
-                test(root)
-                return shapez.STOP_PROPAGATION;
-            },
-        });
-
         /* Register "AI Training" keybinding */
         this.modInterface.registerIngameKeybinding({
             id: "shapez_ai_training_trigger",
@@ -94,7 +86,31 @@ class Mod extends shapez.Mod {
             translation: "trigger_training_event",
             modifiers: { shift: true, },
             handler: root => {
-                backendRequest(root, getGameState(root));
+                train(root, getGameState(root))
+                return shapez.STOP_PROPAGATION;
+            },
+        });
+
+        /* Register "Trigger Function" keybinding */
+        this.modInterface.registerIngameKeybinding({
+            id: "shapez_ai_query_trigger",
+            keyCode: shapez.keyToKeyCode("Q"),
+            translation: "trigger_query_event",
+            modifiers: { shift: true, },
+            handler: root => {
+                query(root, getGameState(root));
+                return shapez.STOP_PROPAGATION;
+            },
+        });
+
+        /* Register "Trigger Function" keybinding */
+        this.modInterface.registerIngameKeybinding({
+            id: "shapez_ai_test_function_trigger",
+            keyCode: shapez.keyToKeyCode("F"),
+            translation: "trigger_test_function_event",
+            modifiers: { shift: true, },
+            handler: root => {
+                test(root)
                 return shapez.STOP_PROPAGATION;
             },
         });
@@ -350,9 +366,9 @@ class Mod extends shapez.Mod {
          * @param {type} gameState - Shapez.__
          * @returns {type} None
          */
-        async function backendRequest(root, gameState) {
+        async function query(root, gameState) {
             update_indicator("yellow");
-            var request = await fetch("http://127.0.0.1:5000/query_model", {
+            var request = await fetch("http://127.0.0.1:5000/query", {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify(gameState),
@@ -362,6 +378,29 @@ class Mod extends shapez.Mod {
                     console.log("Return Data:");
                     console.dir(data)
                     place_entities(root, data)
+                    update_indicator("lightgreen");
+                })
+                .catch((error) => {
+                    console.error("Request failed:", error);
+                    update_indicator("red");
+                });
+        }
+
+        /**
+         * Sends a gameState obj to the python backend.
+         *
+         * @param {type} gameState - Shapez.__
+         * @returns {type} None
+         */
+        async function train(root, gameState) {
+            update_indicator("yellow");
+            var request = await fetch("http://127.0.0.1:5000/train", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify(gameState),
+            })
+                .then((response) => response.json())
+                .then((data) => {
                     update_indicator("lightgreen");
                 })
                 .catch((error) => {

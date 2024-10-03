@@ -88,14 +88,24 @@ class GameState():
     def __str__(self):
         """ Representation when the game class is used as a string. """
         # TODO Give a brief description of the current goal.
-        out = f"GAME: [{self.seed}] - LVL {self.level} - GOAL: [TBD]\n"
-        out += f"  - {len(self.entities)} Currnet Entities\n"
+        goal_desc = f"'{self.goal["item"]}' ({self.goal["amount"]})"
+        out = f"GAME[seed={self.seed}]: LVL {self.level} -> {goal_desc}\n"
+        out += f"  - {len(self.entities)} Current Entities\n"
         out += f"  - {len(self.chunks)} Active Chunks\n"
         out += f"  - {len(self.resources)} Visible Resource Tiles"
         return out
 
+    def get_seed(self):
+        """ Returns the game seed in play. """
+        return self.seed
+
+    def get_action_space(self):
+        """ Returns the action space of the current GameState. """
+        # TODO Implement Action Space Calculation.
+        return [1, 2, 3, 4]
+
     def import_game_state(self, game_state):
-        """ Imports the ECS Entities from the frontend gamestate
+        """ Imports the ECS Entities from the frontend GameState
             and assigns tokens or structures to them for the
             model to process. """
 
@@ -115,7 +125,10 @@ class GameState():
         if self.level is None:
             self.level = game_state['level']
         if self.goal is None:
-            self.goal = game_state['goal']
+            self.goal = {
+                'item': game_state["goal"]["definition"]["cachedHash"],
+                'amount': game_state["goal"]['required']
+            }
 
         # 3.  Import Game entities
         for uid, e in game_state['entities'].items():
@@ -239,6 +252,17 @@ class GameState():
         """ Creates a neatly displayed region graphic. """
         tokens = self.get_region(x, y, width, height, buffer)
         return "\n".join(["".join(row) for row in tokens])
+
+    def display_region_info(self, x=0, y=0, width=16, height=16, buffer=5):
+        """ Creates a neatly displayed region graphic with additional
+        information. """
+        tokens = self.get_region(x, y, width, height, buffer)
+
+        # 1.  Generate a spaced grid
+        spaced_grid = "\n".join([" ".join(row) for row in tokens])
+        title_bar = f"Region {x, y}".center(width*2)
+
+        return f"{title_bar}\n{spaced_grid}"
 
     def display_chunk_info(self, X=0, Y=0, out=""):
         """ Chunk representation with additional highlights and display. """

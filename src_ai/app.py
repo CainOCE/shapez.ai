@@ -2,11 +2,14 @@
 """
 Created on Tue Aug 13, 2024 at 09:55:35
 
-@authors: Cain Bruhn-Tanzer, Rhys Tyne
+@authors: Cain Bruhn-Tanzer, Ryan Miles, Shannon Searle, Rhys Tyne
 """
+import os
+from datetime import datetime
+import logging
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import logging
 
 from game import GameState
 from model import Overseer, Architect
@@ -34,19 +37,36 @@ class ShapezAI(Flask):
         def on_ping():
             return jsonify("pong")
 
-        @self.route('/query_model', methods=['POST'])
+        @self.route('/query', methods=['POST'])
         def on_query():
             """ Handles incoming queries sent by the game instance. """
-            print("Model Queried ->:")
+            # Log Query
+            current_time = datetime.now().strftime("%H:%M:%S")
+            print(f"[{current_time}] -> Model Query:")
 
-            # Update GameState and Query Overseer
+            # Update GameState
             self.game.import_game_state(request.json)
-            response = self.overseer.query(request.json)
+            print(self.game)
+
+            # Query Overseer
+            response = self.overseer.query(self.game)
 
             # Show a nice output to us after a query.
-            print(self.game.display_region(-18, -18, 36, 36))
+            print(self.game.display_region_info(-18, -18, 36, 36))
 
             return jsonify(response)
+
+        @self.route('/train', methods=['POST'])
+        def on_train():
+            """ Handles incoming training requests sent by the game instance.
+            """
+            # Log Query
+            current_time = datetime.now().strftime("%H:%M:%S")
+            print(f"[{current_time}] -> Training Request:")
+
+            # Train the Architect Model
+
+            return jsonify({})
 
 
 if __name__ == "__main__":
