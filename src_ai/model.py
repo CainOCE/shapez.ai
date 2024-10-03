@@ -4,18 +4,21 @@ Created on Tue Aug 13, 2024 at 09:55:41
 
 @author: Cain Bruhn-Tanzer, Rhys Tyne
 """
-
 import os
 import sys
+
+# Set environment flags before running imports.
+os.environ["KERAS_BACKEND"] = "tensorflow"
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Supress INFO Logs
+
+# pylint: disable=C0413
 import json
-import keras
+from datetime import datetime
 import numpy as np
 import tensorflow as tf
-from keras import layers
+import keras
 
-os.environ["KERAS_BACKEND"] = "tensorflow"
-
-MODEL_STORAGE_PATH = "./src_ai/models"
+MODEL_STORAGE_DIRECTORY = "./src_ai/models"
 
 
 class Model:
@@ -29,8 +32,12 @@ class Model:
 
     def save(self, obj):
         """ Saves the current model as a JSON schema file. """
-        os.makedirs(MODEL_STORAGE_PATH, exist_ok=True)
-        path = f"{MODEL_STORAGE_PATH}/{self.name}_{self.version}.json"
+        os.makedirs(MODEL_STORAGE_DIRECTORY, exist_ok=True)
+        folder = MODEL_STORAGE_DIRECTORY
+        name = self.name
+        version = self.version
+        dtime = datetime.now().strftime("%Y-%M-%D_%H_%M_%S")
+        path = f"{folder}/{name}_{version}_{dtime}.json"
         with open(path, 'w', encoding='utf-8') as json_file:
             json.dump(obj, json_file, indent=4)
 
@@ -47,7 +54,7 @@ class Model:
         """ Returns the name of the current model. """
         return self.name
 
-    def train(self, game):
+    def train(self, game):  # pylint: disable=W0613
         """ Advances the model multiple steps to complete a training cycle. """
         return None
 
@@ -141,7 +148,7 @@ class Architect(Model):
         self.epsilon_interval = self.epsilon_max - self.epsilon_min
         self.batch_size = 32
         self.max_steps_per_episode = 10000
-        self.max_episodes = 10
+        self.max_episodes = 100
 
         # Training Values
         self.epsilon_random_frames = 50000  # Random Action Frames
@@ -162,38 +169,35 @@ class Architect(Model):
 
         # Episode Values
         self.running_reward = 0
-        self.episode_count = 0
-        self.frame_count = 0
+        self.episodes = 0
+        self.frames = 0
 
     def create_q_model(self, actions):
         """ Creates a Deep Q Style Model as seen in the deepmind paper. """
         # See https://keras.io/examples/rl/deep_q_network_breakout/
         return keras.Sequential(
             [
-                layers.Lambda(
+                keras.layers.Input(shape=(4, 84, 84)),
+                keras.layers.Lambda(
                     lambda tensor: keras.ops.transpose(tensor, [0, 2, 3, 1]),
                     output_shape=(84, 84, 4),
-                    input_shape=(4, 84, 84),
                 ),
                 # Convolutions on the frames on the screen
-                layers.Conv2D(
-                    32, 8, strides=4,
-                    activation="relu",
-                    input_shape=(4, 84, 84)
-                ),
-                layers.Conv2D(64, 4, strides=2, activation="relu"),
-                layers.Conv2D(64, 3, strides=1, activation="relu"),
-                layers.Flatten(),
-                layers.Dense(512, activation="relu"),
-                layers.Dense(actions, activation="linear"),
+                keras.layers.Conv2D(32, 8, strides=4, activation="relu",),
+                keras.layers.Conv2D(64, 4, strides=2, activation="relu"),
+                keras.layers.Conv2D(64, 3, strides=1, activation="relu"),
+                keras.layers.Flatten(),
+                keras.layers.Dense(512, activation="relu"),
+                keras.layers.Dense(actions, activation="linear"),
             ]
         )
 
     def train(self, game):
         """ Begins the model training loop. (episode) """
-        print("Training RhysModel:")
+        print("Training Architect Model:")
 
         # Key Game Values
+        print(" -> Setting Key Values")
         seed = game.get_seed()
         action_space = game.get_action_space()
 
@@ -202,28 +206,29 @@ class Architect(Model):
         self.model = self.create_q_model(len(action_space))
         self.target = self.create_q_model(len(action_space))
 
-        # Begin a training episode
-        print(" -> Begin Training Loop")
+        # Begin the training loop "Episode"
         episode_reward = 0
-        while not self.validate():
-            self.episode_count += 1
-            sys.stdout.write(f"\rTraining [{self.episode_count}]")
+        while not (
+            (self.running_reward > 40) or
+            (self.episodes >= self.max_episodes)
+        ):
+            self.episodes += 1
+
+            # Update Console Status
+            status = f"{self.episodes} of {self.max_episodes}"
+            sys.stdout.write(f"\r -> Training Episode... [{status}]")
             sys.stdout.flush()
 
-            # Clear the line after completion
-            # sys.stdout.write("\r" + " " * 50 + "\r")  # Clear the line
-            # sys.stdout.flush()
-
             # Manually Reset the game for a training episode.
-            game.reset()  # TODO can we game.reset(lvl=1) to target train?
+            # game.reset()  # TODO can we game.reset(lvl=1) to target train?
             seed = game.get_seed()
             state = game.get_region(-18, -18, 36, 36)
 
             # Conduct X _steps() per episode.
-            # for _ in range(1, self.max_steps_per_episode):
-            #     self.frame_count += 1
-            #     if self._step(game, state, action_space):
-            #         break
+            for _ in range(1, self.max_steps_per_episode):
+                self.frames += 1
+                if self._step(game, state, action_space):
+                    break
 
             # Update running reward to check condition for solving
             self.episode_reward_history.append(episode_reward)
@@ -231,35 +236,28 @@ class Architect(Model):
                 del self.episode_reward_history[:1]
             self.running_reward = np.mean(self.episode_reward_history)
 
+        # Report on outcome
+        print("[SOLVED]" if self.episodes < self.max_episodes else "[CAPPED]")
+
         # Save our model and action history.
-        self.save({
-            "model": self.model,
-            "target": self.target,
-            "actions:": self.action_history
-        })
+        print(" -> Saving Model:  ")
+        # TODO Model and target won't serialize, discuss
+        # self.save({
+        #     "model": self.model,
+        #     "target": self.target,
+        #     "actions:": self.action_history
+        # })
 
         return
-
-    def validate(self):
-        """ Checks the running reward of the current model. """
-        # Condition to consider the task solved
-        if self.running_reward > 40:
-            print(f"Solved at episode {self.episode_count}!")
-            return True
-
-        # Maximum number of episodes reached
-        if (self.max_episodes > 0 and self.episode_count >= self.max_episodes):
-            print(f"Stopped at episode {self.episode_count}!")
-            return True
-        return False
 
     def _step(self, game, state, actions):
         """ Advances the model one step. """
         num_actions = len(actions)
 
         # Use epsilon-greedy for exploration
+
         if (
-            self.frame_count < self.epsilon_random_frames or
+            self.frames < self.epsilon_random_frames or
             self.epsilon > np.random.rand(1)[0]
         ):
             # Take random action
@@ -278,7 +276,9 @@ class Architect(Model):
         self.epsilon = max(self.epsilon, self.epsilon_min)
 
         # Apply the sampled action in our environment
-        state_next, reward, goal = game.validate()
+           # TODO Apply the action in game or validate heuristically.
+        state_next, reward, goal = (state, 0, 0)
+        # state_next, reward, goal = game.validate()
         state_next = np.array(state_next)
         self.running_reward += reward
 
@@ -292,7 +292,7 @@ class Architect(Model):
 
         # Update every fourth frame and once batch size is over 32
         if (
-            self.frame_count % self.update_after_actions == 0 and
+            self.frames % self.update_after_actions == 0 and
             len(self.goal_history) > self.batch_size
         ):
             # Get indices of samples for replay buffers
@@ -344,15 +344,15 @@ class Architect(Model):
                 zip(grads, self.model.trainable_variables)
             )
 
-        if self.frame_count % self.update_target_network == 0:
+        if self.frames % self.update_target_network == 0:
             # update the the target network with new weights
             self.target.set_weights(self.model.get_weights())
             # Log details
             template = "running reward: {:.2f} at episode {}, frame count {}"
             print(template.format(
                 self.running_reward,
-                self.episode_count,
-                self.frame_count)
+                self.episodes,
+                self.frames)
             )
 
         # Limit the state and reward history

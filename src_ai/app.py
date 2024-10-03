@@ -4,9 +4,8 @@ Created on Tue Aug 13, 2024 at 09:55:35
 
 @authors: Cain Bruhn-Tanzer, Ryan Miles, Shannon Searle, Rhys Tyne
 """
-import os
-from datetime import datetime
 import logging
+from datetime import datetime
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -40,6 +39,7 @@ class ShapezAI(Flask):
         @self.route('/query', methods=['POST'])
         def on_query():
             """ Handles incoming queries sent by the game instance. """
+
             # Log Query
             current_time = datetime.now().strftime("%H:%M:%S")
             print(f"[{current_time}] -> Model Query:")
@@ -65,6 +65,7 @@ class ShapezAI(Flask):
             print(f"[{current_time}] -> Training Request:")
 
             # Train the Architect Model
+            self.architect.train(self.game)
 
             return jsonify({})
 

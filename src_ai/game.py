@@ -74,7 +74,7 @@ STRUCTS = {
 
 class GameState():
     """ Defines the gameState object in a form malleable my an AI Model.  """
-    def __init__(self, chunks=None):
+    def __init__(self):
         # General Game State Information
         self.seed = None
         self.level = None
@@ -330,6 +330,10 @@ class GameState():
     #     else:
     #         raise ValueError("Rotation must be 0, 90, 180, or 270 degrees.")
 
+    def validate(self):
+        """ Validates a model solution with the game state and returns a
+        score for the given solution. """
+        return 0
 
 if __name__ == "__main__":
     print("Please call this module as a dependency or import.")

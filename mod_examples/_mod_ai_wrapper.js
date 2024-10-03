@@ -1,4 +1,9 @@
 // @ts-nocheck
+/*
+Created on Tue Aug 13, 2024 at 09:55:35
+@authors: Cain Bruhn-Tanzer, Shannon Searle, Ryan Miles
+*/
+
 const METADATA = {
     website: "https://tobspr.io",
     author: "fish-obsessed",
@@ -8,10 +13,6 @@ const METADATA = {
     description: "Communicates via REST API with a python backend.",
     minimumGameVersion: ">=1.5.0",
 };
-/*
-Created on Tue Aug 13, 2024 at 09:55:35
-@authors: Cain Bruhn-Tanzer, Shannon Searle, Ryan Miles
-*/
 
 const resources = {
     // Colours
@@ -157,7 +158,7 @@ class Mod extends shapez.Mod {
          * @param {number} rotation a number in [0, 90, 180, 270]
          * @returns {Entity}
          */
-        function tryPlaceSimpleBuilding(root, building, x, y, rotation=0, variant=0) {
+        function tryPlaceSimpleBuilding(root, building, x, y, rotation=0) {
             return root.logic.tryPlaceBuilding({
                 origin: new shapez.Vector(x, y),
                 building: shapez.gMetaBuildingRegistry.findByClass(
