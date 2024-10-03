@@ -281,9 +281,9 @@ class Mod extends shapez.Mod {
                     if (ec.Miner) return "miner";
                     if (ec.Belt) return "belt";
                     if (ec.UndergroundBelt) {
-                        type = ec.UndergroundBelt.mode;
-                        tier = ec.UndergroundBelt.tier;
-                        return `${type}${tier}`;
+                        // type = ec.UndergroundBelt.mode;
+                        // tier = ec.UndergroundBelt.tier;
+                        // return `${type}${tier}`;
                     }
                     if (ec.ItemProcessor) return ec.ItemProcessor.type;
                     if (ec.Storage) return "storage";

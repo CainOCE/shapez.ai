@@ -49,7 +49,7 @@ STRUCTS = {
         "╚══╝"
     ],
     # "balancer": "⮤⮥⮣⮡⮦⮧⮠'⮢",
-    "balancer": "1234",
+    "balancer": ["⮤⮥", "⮣⮡", "⮦⮧", "⮠'⮢"],
     "cutter": ["⭻🠴"],
     "cutterQuad": ["⭻🠴🠴🠴"],
     "stacker": ["◰🠴", "◳🠵", "◲🠶", "◱🠷"],
@@ -100,9 +100,16 @@ class GameState():
             model to process. """
 
         # 1.  Import Seed & Active ChunkIDs
-        if self.seed is None:
+        if self.seed is None or self.seed != game_state['seed']:
             self.seed = game_state['seed']
-        self.chunks = game_state['map'].keys()
+            self.entities = {}
+            self.chunks = game_state['map'].keys()
+            self.resources = {}
+
+        # 1b. If Seed has changed nuke the chunks and resources
+        if self.seed != game_state['seed']:
+            self.chunks = []
+            self.resources = {}
 
         # 2.  Import Current Level and Goals
         if self.level is None:
@@ -124,6 +131,7 @@ class GameState():
 
             # Single Token Entities
             token = UNKNOWN_TOKEN
+            e['token'] = token
             if e['type'] in TOKENS:
                 # Use the token in our TOKENS mapping
                 token = TOKENS[e['type']][e['rotation']//90]
@@ -138,9 +146,11 @@ class GameState():
 
             # Handle Structure Entities
             struct = UNKNOWN_TOKEN
+            e['struct'] = token
             if e['type'] in STRUCTS:
                 if e['type'] == "hub":
                     e['token'] = "H"
+                    struct = STRUCTS["hub"]
                 # self._place_structure(e['x'], e['y'], 0, 0, TOKENS["hub"])
                 if e['type'] == "balancer":
                     if e['rotation'] == 0:
@@ -163,8 +173,8 @@ class GameState():
                 del self.entities[uid]
 
         # 4.  Import all resources
-        for id, chunk in game_state['map'].items():
-            X, Y = map(int, id.split('|'))
+        for uid, chunk in game_state['map'].items():
+            X, Y = map(int, uid.split('|'))
             for x, row in enumerate(chunk["resources"]):
                 for y, val in enumerate(row):
                     # GUARD:  No empty tiles
@@ -191,38 +201,48 @@ class GameState():
 
         return
 
-    def get_chunk(self, X=0, Y=0):
-        """ Returns the array output for a given chunk. """
-        # Construct an empty grid to hold our tokens
-        tokens = [[EMPTY_TOKEN for _ in range(16)] for _ in range(16)]
+    def get_region(self, x=0, y=0, width=16, height=16, buffer=5):
+        """ Returns an arbitrary square region of the game board. """
+        xmin, xmax = (x-buffer, x+width+buffer)
+        ymin, ymax = (y-buffer, y+height+buffer)
+        x_range, y_range = (range(xmin, xmax), range(ymin, ymax))
+
+        # Empty grid to hold our tokens with a buffer region for structure gen
+        tokens = [[EMPTY_TOKEN for _ in x_range] for _ in y_range]
 
         # Filter resources within the chunk bounddaries
-        local_resources = {}
-        for uid, resource in self.resources.items():
-            if resource["chunk_x"] == X and resource["chunk_y"] == Y:
-                # Add Resources to the local list
-                local_resources[uid] = resource
-
+        for _, resource in self.resources.items():
+            if resource["x"] in x_range and resource["y"] in y_range:
                 # Add resource token to grid with colour
                 token = resource["token"]
                 token = f"{TERM_COLOUR[token]}{token}{TERM_COLOUR_RESET}"
-                tokens[resource["local_y"]][resource["local_x"]] = token
+                tokens[resource["y"]-ymin][resource["x"]-xmin] = token
 
         # Filter entities within the chunk boundaries
-        local_entities = {}
-        for uid, entity in self.entities.items():
-            if entity["chunk_x"] == X and entity["chunk_y"] == Y:
-                # Add Entities to the local list
-                local_entities[uid] = entity
+        for _, entity in self.entities.items():
+            if entity["x"] in x_range and entity["y"] in y_range:
+                X, Y = (entity["x"]-xmin, entity["y"]-ymin)
+                # Add the resource token to the grid
+                tokens[Y][X] = entity["token"]
 
-                # Add resource token to grid
-                tokens[entity["local_y"]][entity["local_x"]] = entity["token"]
+                # If the entity has a structure place it on the grid
+                if entity["struct"] is not None:
+                    for j, row in enumerate(entity["struct"]):
+                        for i, char in enumerate(row):
+                            if char != ' ':
+                                tokens[Y+j][X+i] = char
 
-        return tokens
+        # Remove the buffered region and return
+        return [row[buffer:-buffer] for row in tokens[buffer:-buffer]]
 
-    def display_chunk(self, X=0, Y=0, out=""):
+    def display_region(self, x=0, y=0, width=16, height=16, buffer=5):
+        """ Creates a neatly displayed region graphic. """
+        tokens = self.get_region(x, y, width, height, buffer)
+        return "\n".join(["".join(row) for row in tokens])
+
+    def display_chunk_info(self, X=0, Y=0, out=""):
         """ Chunk representation with additional highlights and display. """
-        tokens = self.get_chunk(X, Y)
+        tokens = self.get_region(X*16, Y*16)
 
         # Helper Function and Constants
         def hval(x):
@@ -257,36 +277,6 @@ class GameState():
         footer = f"{bt[3]}{22*f' {bt[0]}'} {bt[4]}"
         return f"{header}{out}{footer}"
 
-    def display_hub(self):
-        """ Shows the chunks around the hub area. """
-        # Split the strings into lines
-        def merge_output(str1, str2):
-            """ Merges two output statements. """
-            merged_lines = []
-
-            lines1 = str1.splitlines()
-            lines2 = str2.splitlines()
-            max_lines = max(len(lines1), len(lines2))
-
-            for i in range(max_lines):
-                line1 = lines1[i] if i < len(lines1) else ''
-                line2 = lines2[i] if i < len(lines2) else ''
-
-                # Merge the lines with the separator
-                merged_lines.append(line1 + " " + line2)
-            return '\n'.join(merged_lines)
-
-        out = merge_output(
-            self.display_chunk(-1, -1),
-            self.display_chunk(0, -1)
-        )
-        out += '\n'
-        out += merge_output(
-            self.display_chunk(-1, 0),
-            self.display_chunk(0, 0)
-        )
-        return out
-
     def list_chunks(self):
         """ Lists all chunks stored in the game class. """
         if not self.chunks:
@@ -294,32 +284,7 @@ class GameState():
         chunks = "\n".join(f"  {chunk}" for chunk in self.chunks)
         return f"Current Chunks:  \n{chunks}"
 
-    # def _get_token(self, x, y):
-    #     """ Gets the Entity located at a global (x, y) coordinate. """
-    #     # TODO:  There should only be one.
-    #     return None
-
-    # def _place_resource(self, x, y, resource):
-    #     """ Colours the tile based on the available resources. """
-    #     if resource in "rgb":
-    #         self._place_token(x, y, resource)
-
-    # def _place_token(self, x, y, token):
-    #     """ Places a token at a global (x, y) coordinate. """
-    #     (self.get_chunk(x // 16, y // 16)).place_token(x % 16, y % 16, token)
-
-    # def _place_structure(self, x, y, u, v, structure):
-    #     """
-    #     Places a structure at a global coordinate (x, y)
-    #     with offset (u, v).
-    #     """
-    #     print(f"Placing structure: {structure} at ({x}, {y}) += ({u}, {v})")
-    #     for j, row in enumerate(structure):
-    #         for i, char in enumerate(row):
-    #             if char != ' ':
-    #                 self._place_token(x+i, y+j, char)
-
-    # def _rotate_structure(self, structure, rotation=0):
+    # def _place_structure(self, structure, rotation=0):
     #     """ Rotate a model structure by a rotation of 0, 90, 180, 270. """
 
     #     def clockwise(array):

@@ -44,7 +44,7 @@ class ShapezAI(Flask):
             response = self.overseer.query(request.json)
 
             # Show a nice output to us after a query.
-            print(self.game.display_hub())
+            print(self.game.display_region(-18, -18, 36, 36))
 
             return jsonify(response)
 
