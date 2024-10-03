@@ -65,7 +65,12 @@ class Mod extends shapez.Mod {
             translation: "trigger_reset_event",
             modifiers: { shift: true, },
             handler: root => {
-                resetGame(root)
+                // 'Hard' Reset the game, new seed and instance
+                root.gameState.goBackToMenu();
+
+                // 'Soft' reset the game. retain seed (and resouce locations)
+                // softGameReset(root)
+
                 return shapez.STOP_PROPAGATION;
             },
         });
@@ -95,7 +100,7 @@ class Mod extends shapez.Mod {
         });
 
         /* Destroys all non-hub map entities and clears progression. */
-        function resetGame(root) {
+        function softGameReset(root) {
             const E = root.gameState["core"]["root"]["entityMgr"]["entities"]
             // GUARD:
             if (E.size <= 1) {
@@ -312,6 +317,30 @@ class Mod extends shapez.Mod {
             };
         }
 
+        /* Sends a communication pulse to the Python Backendd */
+        async function ping() {
+            var request = await fetch("http://127.0.0.1:5000/ping", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: "ping",
+            })
+                .then((response) => response.json())
+                .then((data) => {
+                    // Change indicator to show server comms are live
+                    if (indicator.style.background == "lightgreen") {
+                        update_indicator("green");
+                    } else {
+                        update_indicator("lightgreen");
+                    }
+
+                    // Call a reset if requested.
+                })
+                .catch((error) => {
+                    update_indicator("red");
+            });
+
+        }
+        const intervalId = setInterval(async () => { await ping(); }, 1000);
 
         /**
          * Sends a gameState obj to the python backend.
@@ -323,9 +352,7 @@ class Mod extends shapez.Mod {
             update_indicator("yellow");
             var request = await fetch("http://127.0.0.1:5000/query_model", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
+                headers: {"Content-Type": "application/json"},
                 body: JSON.stringify(gameState),
             })
                 .then((response) => response.json())
@@ -348,7 +375,7 @@ class Mod extends shapez.Mod {
                 position: absolute; background: red;
                 bottom: calc(10px * var(--ui-scale));
                 right: calc(10px * var(--ui-scale));
-                width: 16px; height: 16px; z-index: 1000;
+                width: 12px; height: 12px; z-index: 1000;
                 border: 2px solid white; border-radius: 50%; padding: 00px;
                 display: flex; align-items: center; justify-content: center;
             }

@@ -6,8 +6,14 @@ Created on Tue Aug 13, 2024 at 09:55:35
 """
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+import logging
+
 from game import GameState
 from model import Overseer, Architect
+
+# Suppress Flask's default logging
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.WARNING)
 
 
 class ShapezAI(Flask):
@@ -24,9 +30,15 @@ class ShapezAI(Flask):
     def _routing(self):
         """Sets up the routes for the Flask app."""
 
+        @self.route('/ping', methods=['POST'])
+        def on_ping():
+            return jsonify("pong")
+
         @self.route('/query_model', methods=['POST'])
         def on_query():
             """ Handles incoming queries sent by the game instance. """
+            print("Model Queried ->:")
+
             # Update GameState and Query Overseer
             self.game.import_game_state(request.json)
             response = self.overseer.query(request.json)
