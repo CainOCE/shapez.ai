@@ -1,0 +1,28 @@
+# Extend the existing Node.js & TypeScript image
+FROM mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm
+
+# Set environment variables to avoid interaction during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install ffmpeg and default JRE
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    default-jre \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    python3-pip \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+RUN pip install --break-system-packages Flask Flask-Cors keras
+RUN pip install --break-system-packages tensorflow-aarch64 keras
+
+# Build the project
+# RUN npm update
+# RUN npm install gulp-cli
+# RUN yarn
+# RUN cd gulp
+# RUN yarn gulp

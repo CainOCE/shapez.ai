@@ -232,7 +232,8 @@ class GameState():
 
         # Generate a title line with padded border
         title = f"Chunk {str(X).rjust(3)}|{str(Y).ljust(3)}"
-        header = f"{bt[1]} {f"{bt[0]} "*7} {title} {f" {bt[0]}"*7} {bt[2]}\n"
+        left, right = (f"{bt[0]} ", f" {bt[0]}")
+        header = f"{bt[1]} {left*7} {title} {right*7} {bt[2]}\n"
 
         # Pretty Hex Column Header
         out += f"{bt[0]}  " + "".join(
