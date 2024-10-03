@@ -317,7 +317,7 @@ class Mod extends shapez.Mod {
             };
         }
 
-        /* Sends a communication pulse to the Python Backendd */
+        /* Sends a communication pulse to the Python Backend */
         async function ping() {
             var request = await fetch("http://127.0.0.1:5000/ping", {
                 method: "POST",
@@ -338,7 +338,9 @@ class Mod extends shapez.Mod {
                 .catch((error) => {
                     update_indicator("red");
             });
-
+            // NOTE:  It's super annoying that this generates an error
+            //        constantly when it can't connect.  -net in the chrome
+            //        devtools filter will hide these messages.
         }
         const intervalId = setInterval(async () => { await ping(); }, 1000);
 
