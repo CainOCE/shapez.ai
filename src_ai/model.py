@@ -226,6 +226,8 @@ class Architect(Model):
                 - DO I NEED TO RESET ALL HYPERPARAMETERS TO ORIGINAL VALUES AT START OF EACH EPISODE????
                 
                 - HOW DOES MODEL RETURNS BEST ACTION? WHAT IS THE FORMAT?
+
+                - i think we do need a state because thats how tensorflow works to use prebuilt methods
                 
                 """
 
@@ -249,6 +251,8 @@ class Architect(Model):
                     # how is this aciton being returned? we need like (x, y, action)
                     action = keras.ops.argmax(action_probs[0]).numpy() 
 
+                print(action) ## test to see what model predicted action looks like
+
                 # Decay probability of taking random action
                 self.epsilon -= self.epsilon_interval / self.epsilon_greedy_frames
                 self.epsilon = max(self.epsilon, self.epsilon_min)
@@ -269,8 +273,81 @@ class Architect(Model):
                 self.state_next_history.append(state_next)
                 self.goal_history.append(goal)
                 self.rewards_history.append(reward)
-                state = state_next
-                        
+                state = state_next      
+
+
+                # Update every fourth frame and once batch size is over 32
+                if (self.frames % self.update_after_actions == 0 and
+                    len(self.goal_history) > self.batch_size):
+                    # Get indices of samples for replay buffers
+                    indices = np.random.choice(
+                        range(len(self.goal_history)), size=self.batch_size
+                    )
+
+                    # Using list comprehension to sample from replay buffer
+                    state_sample = np.array([self.state_history[i] for i in indices])
+                    state_next_sample = np.array(
+                        [self.state_next_history[i] for i in indices]
+                    )
+                    rewards_sample = [self.rewards_history[i] for i in indices]
+                    action_sample = [self.action_history[i] for i in indices]
+                    goal_sample = keras.ops.convert_to_tensor(
+                        [float(self.goal_history[i]) for i in indices]
+                    )
+
+                    # Build the updated Q-values for the sampled future states
+                    # Use the target model for stability
+                    future_rewards = self.target.predict(state_next_sample)
+                    # Q value = reward + discount factor * expected future reward
+                    updated_q_values = rewards_sample + self.gamma * keras.ops.amax(
+                        future_rewards, axis=1
+                    )
+
+                    # If final frame set the last value to -1
+                    updated_q_values = updated_q_values*(1-goal_sample) - goal_sample
+
+                    # Create a mask so we only calculate loss on the updated Q-values
+                    masks = keras.ops.one_hot(action_sample, num_actions)
+
+                    with tf.GradientTape() as tape:
+                        # Train the model on the states and updated Q-values
+                        q_values = self.model(state_sample)
+
+                        # Apply the masks to the Q-values to get the Q-value for
+                        # action taken
+                        q_action = keras.ops.sum(
+                            keras.ops.multiply(q_values, masks), axis=1
+                        )
+
+                        # Calculate loss between new Q-value and old Q-value
+                        loss = self.loss_function(updated_q_values, q_action)
+
+                    # Backpropagation
+                    grads = tape.gradient(loss, self.model.trainable_variables)
+                    self.optimiser.apply_gradients(
+                        zip(grads, self.model.trainable_variables)
+                    )
+
+                if self.frames % self.update_target_network == 0:
+                # update the the target network with new weights
+                    self.target.set_weights(self.model.get_weights())
+                    # Log details
+                    template = "running reward: {:.2f} at episode {}, frame count {}"
+                    print(template.format(
+                        self.running_reward,
+                        self.episodes,
+                        self.frames)
+                    )
+
+                # Limit the state and reward history
+                if len(self.rewards_history) > self.max_memory_length:
+                    del self.state_history[:1]
+                    del self.state_next_history[:1]
+                    del self.rewards_history[:1]
+                    del self.goal_history[:1]
+
+                
+   
             self.frames = 0
 
             self.episodes += 1
@@ -293,97 +370,10 @@ class Architect(Model):
         print("[SOLVED]" if self.episodes < self.max_episodes else "[CAPPED]")
 
         # Save our model and action history.
-        print(" -> Saving Model:  ")
-        # TODO Model and target won't serialize, discuss
-        # self.save({
-        #     "model": self.model,
-        #     "target": self.target,
-        #     "actions:": self.action_history
-        # })
+        self.model.save('model.keras')
+
 
         return
-
-    def _step(self, game, state, actions):
-        """ Advances the model one step. """
-        num_actions = len(actions)
-
-        
-
-        
-
-        # Update every fourth frame and once batch size is over 32
-        if (
-            self.frames % self.update_after_actions == 0 and
-            len(self.goal_history) > self.batch_size
-        ):
-            # Get indices of samples for replay buffers
-            indices = np.random.choice(
-                range(len(self.goal_history)), size=self.batch_size
-            )
-
-            # Using list comprehension to sample from replay buffer
-            state_sample = np.array([self.state_history[i] for i in indices])
-            state_next_sample = np.array(
-                [self.state_next_history[i] for i in indices]
-            )
-            rewards_sample = [self.rewards_history[i] for i in indices]
-            action_sample = [self.action_history[i] for i in indices]
-            goal_sample = keras.ops.convert_to_tensor(
-                [float(self.goal_history[i]) for i in indices]
-            )
-
-            # Build the updated Q-values for the sampled future states
-            # Use the target model for stability
-            future_rewards = self.target.predict(state_next_sample)
-            # Q value = reward + discount factor * expected future reward
-            updated_q_values = rewards_sample + self.gamma * keras.ops.amax(
-                future_rewards, axis=1
-            )
-
-            # If final frame set the last value to -1
-            updated_q_values = updated_q_values*(1-goal_sample) - goal_sample
-
-            # Create a mask so we only calculate loss on the updated Q-values
-            masks = keras.ops.one_hot(action_sample, num_actions)
-
-            with tf.GradientTape() as tape:
-                # Train the model on the states and updated Q-values
-                q_values = self.model(state_sample)
-
-                # Apply the masks to the Q-values to get the Q-value for
-                # action taken
-                q_action = keras.ops.sum(
-                    keras.ops.multiply(q_values, masks), axis=1
-                )
-
-                # Calculate loss between new Q-value and old Q-value
-                loss = self.loss_function(updated_q_values, q_action)
-
-            # Backpropagation
-            grads = tape.gradient(loss, self.model.trainable_variables)
-            self.optimiser.apply_gradients(
-                zip(grads, self.model.trainable_variables)
-            )
-
-        if self.frames % self.update_target_network == 0:
-            # update the the target network with new weights
-            self.target.set_weights(self.model.get_weights())
-            # Log details
-            template = "running reward: {:.2f} at episode {}, frame count {}"
-            print(template.format(
-                self.running_reward,
-                self.episodes,
-                self.frames)
-            )
-
-        # Limit the state and reward history
-        if len(self.rewards_history) > self.max_memory_length:
-            del self.state_history[:1]
-            del self.state_next_history[:1]
-            del self.rewards_history[:1]
-            del self.goal_history[:1]
-
-        return True
 
 
 if __name__ == "__main__":

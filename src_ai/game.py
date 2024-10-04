@@ -159,7 +159,22 @@ class GameState():
         # apply heuristic, 
         # I assume we only need entities, goals and resources for this:
         return self.evaluate_state()
+    
+    # to be implemented -- reset game with new seed
+    def reset(self):
+        return
         
+    # reward function -- very important for performance
+    def evaluate_state(self):
+        # things to check for: (using random numbers) 
+        # -- im scared to make rewards for non immediate goals so model does not find some hack 
+        # - produce goal shape (+1)
+        # - produce future goal shape (+0.00001)
+        # - belts connecting (+0.0001)
+        # - belts connecting to hub (+0.0001)
+        # - plus more... idk, could add heps here dpends how complex we want this method to be
+        return 1
+
 
     # still needs adjust ing for weird strings
     def get_possible_actions(self):
