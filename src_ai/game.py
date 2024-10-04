@@ -73,7 +73,7 @@ STRUCTS = {
 
 
 class GameState():
-    """ Defines the gameState object in a form malleable my an AI Model.  """
+    """ Defines the gameState object in a form malleable by an AI Model.  """
     def __init__(self):
         # General Game State Information
         self.seed = None
@@ -87,8 +87,8 @@ class GameState():
 
     def __str__(self):
         """ Representation when the game class is used as a string. """
-        # TODO Give a brief description of the current goal.
-        goal_desc = f"'{self.goal["item"]}' ({self.goal["amount"]})"
+        goal_item, goal_amount = (self.goal["item"], self.goal["amount"])
+        goal_desc = f"\'{goal_item}\' ({goal_amount})"
         out = f"GAME[seed={self.seed}]: LVL {self.level} -> {goal_desc}\n"
         out += f"  - {len(self.entities)} Current Entities\n"
         out += f"  - {len(self.chunks)} Active Chunks\n"
