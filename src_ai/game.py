@@ -9,6 +9,8 @@ Created on Wed Sep 25, 2024 at 13:00:32
 # http://xahlee.info/comp/unicode_arrows.html
 # Note: Shapez.io defines rotation in True North Bearings e.g. URDL or NESW
 
+import numpy as np
+
 TERM_COLOUR = {
     'r': "\033[41m",
     'g': "\033[42m",
@@ -84,11 +86,17 @@ class GameState():
         self.entities = {}
         self.chunks = []
         self.resources = {}
+        self.empties = [] # rhys made array
+        self.size = 32 # some size factor which the model only focusing on that area
+        # so 32 x 32 grid around the hub for example 
+    
+
 
     def __str__(self):
         """ Representation when the game class is used as a string. """
         # TODO Give a brief description of the current goal.
-        goal_desc = f"'{self.goal["item"]}' ({self.goal["amount"]})"
+       # goal_desc = f"'{self.goal["item"]}' ({self.goal["amount"]})"
+        goal_desc = 'a'
         out = f"GAME[seed={self.seed}]: LVL {self.level} -> {goal_desc}\n"
         out += f"  - {len(self.entities)} Current Entities\n"
         out += f"  - {len(self.chunks)} Active Chunks\n"
@@ -99,10 +107,83 @@ class GameState():
         """ Returns the game seed in play. """
         return self.seed
 
-    def get_action_space(self):
+    def get_all_actions(self):
         """ Returns the action space of the current GameState. """
         # TODO Implement Action Space Calculation.
-        return [1, 2, 3, 4]
+
+        # rhys thoughts: make level limit number of actions available
+        ### need to implement this
+        ###
+
+        #
+        #
+        return ["↑", "→"]
+    
+    def get_building_actions(self, building):
+        actions = TOKENS.get('belt').split() + TOKENS.get('beltCnrR').split() + TOKENS.get('beltCnrL').split() 
+        actions.remove(building)
+        #actions.append('0') ## delete???
+        return actions
+
+    def get_empty_actions(self):
+        # return all possible buidlings to place on an empty square
+        return TOKENS.get('belt').split() + TOKENS.get('beltCnrR').split() + TOKENS.get('beltCnrL').split() 
+    
+    # get available actions for resource cell
+    def get_resource_actions(self):
+        return TOKENS.get('miner').split()
+    
+    def step(self, index, action):
+        i = index % self.size
+        j = index // self.size
+        # update ECS arrays
+
+        ## this bit is assuming you can replace building maybe implement later
+        if (i,j) in self.entities.keys(): # idk if this is right format?
+            if action == 'delete':
+                self.entities.pop((i, j))
+            else:
+                # replace entity with new building
+                pass
+        elif (i,j) in self.resources.keys():
+            self.entities[(i, j)] = action
+
+        else: # cell must be empty
+            self.empties.remove((i, j))
+            self.entities[(i, j)] = action
+
+        # send action to API????? ---- leaveing this to Cain
+
+
+
+        # apply heuristic, 
+        # I assume we only need entities, goals and resources for this:
+        return self.evaluate_state()
+        
+
+    # still needs adjust ing for weird strings
+    def get_possible_actions(self):
+        # gonna do this in naive way -- sorry Cain
+        
+        state = self.get_region()
+        actions = []
+        # index = i + size + j
+
+        for i in range(len(state)):
+            for j in range(len(state[0])):
+                index = i * len(state) + j
+                cell = state[i,j]
+                # need to reqrite these with value retuned by get_region
+                if cell == "HUB":  
+                    pass
+                elif cell == "empty":
+                    actions[index] = self.get_empty_actions()
+
+                elif cell == "resource":
+                    actions[index] = self.get_resource_actions()
+
+        return actions
+
 
     def import_game_state(self, game_state):
         """ Imports the ECS Entities from the frontend GameState
@@ -214,7 +295,7 @@ class GameState():
 
         return
 
-    def get_region(self, x=0, y=0, width=16, height=16, buffer=5):
+    def get_region(self, x=0, y=0, width=16, height=16, buffer=8):
         """ Returns an arbitrary square region of the game board. """
         xmin, xmax = (x-buffer, x+width+buffer)
         ymin, ymax = (y-buffer, y+height+buffer)

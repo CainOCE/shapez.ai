@@ -17,6 +17,7 @@ from datetime import datetime
 import numpy as np
 import tensorflow as tf
 import keras
+import random
 
 MODEL_STORAGE_DIRECTORY = "./src_ai/models"
 
@@ -199,7 +200,8 @@ class Architect(Model):
         # Key Game Values
         print(" -> Setting Key Values")
         seed = game.get_seed()
-        action_space = game.get_action_space()
+        action_space = game.get_all_actions()
+        num_actions = len(action_space)
 
         # Create the Deep Q Models
         print(" -> Creating Deep Q Model & Target Model")
@@ -207,29 +209,80 @@ class Architect(Model):
         self.target = self.create_q_model(len(action_space))
 
         # Begin the training loop "Episode"
-        episode_reward = 0
+        
         while not (
-            (self.running_reward > 40) or
-            (self.episodes >= self.max_episodes)
-        ):
-            self.episodes += 1
+            (self.running_reward > 40) or (self.episodes >= self.max_episodes)):
+            episode_reward = 0
 
             # Update Console Status
             status = f"{self.episodes} of {self.max_episodes}"
             sys.stdout.write(f"\r -> Training Episode... [{status}]")
             sys.stdout.flush()
 
+            # Conduct X _steps() per episode.
+            for _ in range(1, self.max_steps_per_episode):
+                """
+                things to check:
+                - DO I NEED TO RESET ALL HYPERPARAMETERS TO ORIGINAL VALUES AT START OF EACH EPISODE????
+                
+                - HOW DOES MODEL RETURNS BEST ACTION? WHAT IS THE FORMAT?
+                
+                """
+
+                self.frames += 1
+                action = None # define action before use
+                pos = None # position of action (pos = i * game.size + j)
+                # Use epsilon-greedy for exploration
+                if (self.frames < self.epsilon_random_frames or self.epsilon > np.random.rand(1)[0]):
+                    # Take random action
+                    possible_actions = game.get_possible_actions()
+                    pos = np.random.randint(game.size**2)
+                    action = random.choice(possible_actions[pos])
+                else:
+                    # Predict action Q-values
+                    # From environment state
+                    state_tensor = keras.ops.convert_to_tensor(state)
+                    state_tensor = keras.ops.expand_dims(state_tensor, 0)
+                    action_probs = self.model(state_tensor, training=False)
+                    # Take best action
+                    # _-_-_-_-------how do I need to adjust aciton_probs??? -----_-_-___-_---
+                    # how is this aciton being returned? we need like (x, y, action)
+                    action = keras.ops.argmax(action_probs[0]).numpy() 
+
+                # Decay probability of taking random action
+                self.epsilon -= self.epsilon_interval / self.epsilon_greedy_frames
+                self.epsilon = max(self.epsilon, self.epsilon_min)
+
+                # Apply the sampled action in our environment
+                # TODO Apply the action in game or validate heuristically.
+
+                reward = game.step(pos, action)
+
+                state_next, reward, goal = (state, 0, 0)
+                # state_next, reward, goal = game.validate()
+                state_next = np.array(state_next)
+                self.running_reward += reward
+
+                # Save actions and states in replay buffer
+                self.action_history.append(action)
+                self.state_history.append(state)
+                self.state_next_history.append(state_next)
+                self.goal_history.append(goal)
+                self.rewards_history.append(reward)
+                state = state_next
+                        
+            self.frames = 0
+
+            self.episodes += 1
+
+            
+
             # Manually Reset the game for a training episode.
             # game.reset()  # TODO can we game.reset(lvl=1) to target train?
             seed = game.get_seed()
             state = game.get_region(-18, -18, 36, 36)
 
-            # Conduct X _steps() per episode.
-            for _ in range(1, self.max_steps_per_episode):
-                self.frames += 1
-                if self._step(game, state, action_space):
-                    break
-
+            
             # Update running reward to check condition for solving
             self.episode_reward_history.append(episode_reward)
             if len(self.episode_reward_history) > 100:
@@ -254,41 +307,9 @@ class Architect(Model):
         """ Advances the model one step. """
         num_actions = len(actions)
 
-        # Use epsilon-greedy for exploration
+        
 
-        if (
-            self.frames < self.epsilon_random_frames or
-            self.epsilon > np.random.rand(1)[0]
-        ):
-            # Take random action
-            action = np.random.choice(num_actions)
-        else:
-            # Predict action Q-values
-            # From environment state
-            state_tensor = keras.ops.convert_to_tensor(state)
-            state_tensor = keras.ops.expand_dims(state_tensor, 0)
-            action_probs = self.model(state_tensor, training=False)
-            # Take best action
-            action = keras.ops.argmax(action_probs[0]).numpy()
-
-        # Decay probability of taking random action
-        self.epsilon -= self.epsilon_interval / self.epsilon_greedy_frames
-        self.epsilon = max(self.epsilon, self.epsilon_min)
-
-        # Apply the sampled action in our environment
-           # TODO Apply the action in game or validate heuristically.
-        state_next, reward, goal = (state, 0, 0)
-        # state_next, reward, goal = game.validate()
-        state_next = np.array(state_next)
-        self.running_reward += reward
-
-        # Save actions and states in replay buffer
-        self.action_history.append(action)
-        self.state_history.append(state)
-        self.state_next_history.append(state_next)
-        self.goal_history.append(goal)
-        self.rewards_history.append(reward)
-        state = state_next
+        
 
         # Update every fourth frame and once batch size is over 32
         if (

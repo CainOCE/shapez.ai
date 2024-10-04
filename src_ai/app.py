@@ -53,7 +53,8 @@ class ShapezAI(Flask):
 
             # Show a nice output to us after a query.
             print(self.game.display_region_info(-18, -18, 36, 36))
-
+            
+            print(self.game.get_region())
             return jsonify(response)
 
         @self.route('/train', methods=['POST'])
