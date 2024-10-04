@@ -17,6 +17,7 @@ from datetime import datetime
 import numpy as np
 import tensorflow as tf
 import keras
+import random
 
 MODEL_STORAGE_DIRECTORY = "./src_ai/models"
 
@@ -62,7 +63,7 @@ class Model:
         """ Checks a given solution and assigns points to it. """
         return None
 
-    def _step(self, state):  # pylint: disable=W0613
+    def _step(self, game):  # pylint: disable=W0613
         """ Advances the model one step. """
         return True
 
@@ -272,7 +273,6 @@ class Architect(Model):
         if self.model_state == "EPISODE":
             episode()
         if self.model_state == "FRAME":
-            self.frames += 1
             self._step(game)
             # Reset if training finished
             if self.frames >= self.max_frames:
@@ -281,19 +281,34 @@ class Architect(Model):
 
     def _step(self, game):
         """ Advances the model one step. """
-        state = game.get_region(-18, -18, 36, 36)
+        self.frames += 1
+
+        """ Rhys Notes:
+        things to check:
+        - DO I NEED TO RESET ALL HYPERPARAMETERS TO ORIGINAL VALUES AT START OF EACH EPISODE????
+
+        - HOW DOES MODEL RETURNS BEST ACTION? WHAT IS THE FORMAT?
+
+        - i think we do need a state because thats how tensorflow works to use prebuilt methods
+        """
 
         # TODO Calculate available actions eg empty spaces.
         actions = self.action_space
         num_actions = len(actions)
 
+        state = game.get_region(-18, -18, 36, 36)
+        action = None # define action before use
+        pos = None # position of action (pos = i * game.size + j)
+
         # Use epsilon-greedy for exploration
         if (
-            self.frames < self.epsilon_random_frames or
-            self.epsilon > np.random.rand(1)[0]
+            self.frames < self.epsilon_random_frames
+            or self.epsilon > np.random.rand(1)[0]
         ):
             # Take random action
-            action = np.random.choice(num_actions)
+            possible_actions = game.get_possible_actions()
+            pos = np.random.randint(game.size**2)
+            action = random.choice(possible_actions[pos])
         else:
             # Predict action Q-values
             # From environment state
@@ -302,13 +317,20 @@ class Architect(Model):
             action_probs = self.model(state_tensor, training=False)
             # Take best action
             action = keras.ops.argmax(action_probs[0]).numpy()
+            # TODO How to adjust action probabilities eg action weights
+            # how is this aciton being returned? we need like (x, y, action)
+
+        print(action)  # TODO Print debug, remove later.
 
         # Decay probability of taking random action
         self.epsilon -= self.epsilon_interval / self.epsilon_greedy_frames
         self.epsilon = max(self.epsilon, self.epsilon_min)
 
         # Apply the sampled action in our environment
-           # TODO Apply the action in game or validate heuristically.
+        # TODO Apply the action in game or validate heuristically.
+
+        reward = game.step(pos, action)
+
         state_next, reward, goal = (state, 0, 0)
         # state_next, reward, goal = game.validate()
         state_next = np.array(state_next)
@@ -322,11 +344,10 @@ class Architect(Model):
         self.rewards_history.append(reward)
         state = state_next
 
+
         # Update every fourth frame and once batch size is over 32
-        if (
-            self.frames % self.update_after_actions == 0 and
-            len(self.goal_history) > self.batch_size
-        ):
+        if (self.frames % self.update_after_actions == 0 and
+            len(self.goal_history) > self.batch_size):
             # Get indices of samples for replay buffers
             indices = np.random.choice(
                 range(len(self.goal_history)), size=self.batch_size
@@ -377,7 +398,7 @@ class Architect(Model):
             )
 
         if self.frames % self.update_target_network == 0:
-            # update the the target network with new weights
+        # update the the target network with new weights
             self.target.set_weights(self.model.get_weights())
             # Log details
             template = "running reward: {:.2f} at episode {}, frame count {}"
@@ -394,7 +415,7 @@ class Architect(Model):
             del self.rewards_history[:1]
             del self.goal_history[:1]
 
-        return True
+        return
 
     def get_state_action(self):
         """ Returns the queued action state from the model. """
