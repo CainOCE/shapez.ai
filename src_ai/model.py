@@ -36,7 +36,7 @@ class Model:
         folder = MODEL_STORAGE_DIRECTORY
         name = self.name
         version = self.version
-        dtime = datetime.now().strftime("%Y-%M-%D_%H_%M_%S")
+        dtime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         path = f"{folder}/{name}_{version}_{dtime}.json"
         with open(path, 'w', encoding='utf-8') as json_file:
             json.dump(obj, json_file, indent=4)
@@ -133,12 +133,22 @@ class Architect(Model):
 
     def __init__(self, seed=42):
         super().__init__()
-        self.name = "RhysArchitect"
-        self.version = "0.3.0"
+        self.name = "Architect"
+        self.version = "0.4.0"
+        self.model_state = "ONLINE"
+
+        # Model Training Factors
         self.seed = seed
         self.model = {}
         self.target = {}
         self.optimiser = keras.optimizers.Adam(learning_rate=0.0001)
+        self.action_space = []
+        self.episodes = 0
+        self.max_episodes = 5   # TODO was 10
+        self.max_frames = 2  # TODO was 10,000
+        self.running_reward = 0
+        self.episode_reward = 0
+        self.frames = 0
 
         # Chosen Hyperparameters
         self.gamma = 0.99
@@ -147,8 +157,6 @@ class Architect(Model):
         self.epsilon_max = 1.0
         self.epsilon_interval = self.epsilon_max - self.epsilon_min
         self.batch_size = 32
-        self.max_steps_per_episode = 10000
-        self.max_episodes = 100
 
         # Training Values
         self.epsilon_random_frames = 50000  # Random Action Frames
@@ -167,10 +175,6 @@ class Architect(Model):
         self.rewards_history = []
         self.episode_reward_history = []
 
-        # Episode Values
-        self.running_reward = 0
-        self.episodes = 0
-        self.frames = 0
 
     def create_q_model(self, actions):
         """ Creates a Deep Q Style Model as seen in the deepmind paper. """
@@ -193,69 +197,97 @@ class Architect(Model):
         )
 
     def train(self, game):
-        """ Begins the model training loop. (episode) """
-        print("Training Architect Model:")
+        """ Begins the model training state machine. """
+        # print(f"STATE -> {self.model_state}")
+            # TODO Unfortunately a state machine was necessary for the bridge
 
-        # Key Game Values
-        print(" -> Setting Key Values")
-        seed = game.get_seed()
-        action_space = game.get_action_space()
+        def start():
+            """ Utility:  Executes before a training session. """
+            print(" -> Setting Key Values")
+            self.seed = game.get_seed()
+            self.action_space = game.get_actions()
+            self.episode_reward = 0
 
-        # Create the Deep Q Models
-        print(" -> Creating Deep Q Model & Target Model")
-        self.model = self.create_q_model(len(action_space))
-        self.target = self.create_q_model(len(action_space))
+            # Create the Deep Q Models
+            print(" -> Creating Deep Q Model & Target Model")
+            self.model = self.create_q_model(len(self.action_space))
+            self.target = self.create_q_model(len(self.action_space))
+            # TODO can we game.reset(lvl=1) to target train?
 
-        # Begin the training loop "Episode"
-        episode_reward = 0
-        while not (
-            (self.running_reward > 40) or
-            (self.episodes >= self.max_episodes)
-        ):
+        def episode():
+            """ Utility:  Resets for a fresh training episode. """
             self.episodes += 1
 
-            # Update Console Status
+            # Print the Episode Details to the console
             status = f"{self.episodes} of {self.max_episodes}"
             sys.stdout.write(f"\r -> Training Episode... [{status}]")
             sys.stdout.flush()
 
-            # Manually Reset the game for a training episode.
-            # game.reset()  # TODO can we game.reset(lvl=1) to target train?
-            seed = game.get_seed()
-            state = game.get_region(-18, -18, 36, 36)
-
-            # Conduct X _steps() per episode.
-            for _ in range(1, self.max_steps_per_episode):
-                self.frames += 1
-                if self._step(game, state, action_space):
-                    break
+            # TODO Calculate an episode reward if necessary.
+            episode_reward = 1
 
             # Update running reward to check condition for solving
             self.episode_reward_history.append(episode_reward)
-            if len(self.episode_reward_history) > 100:
-                del self.episode_reward_history[:1]
+            self.episode_reward_history = self.episode_reward_history[-100:]
             self.running_reward = np.mean(self.episode_reward_history)
 
-        # Report on outcome
-        print("[SOLVED]" if self.episodes < self.max_episodes else "[CAPPED]")
+            # Reset the frame count and transition
+            self.frames = 0
+            self.model_state = "FRAME"
 
-        # Save our model and action history.
-        print(" -> Saving Model:  ")
-        # TODO Model and target won't serialize, discuss
-        # self.save({
-        #     "model": self.model,
-        #     "target": self.target,
-        #     "actions:": self.action_history
-        # })
+        def finish():
+            """ Utility:  Executes after a training session. """
+            # Reset our episodes
+            print("\n -> Cleaning Episode State.")
+            self.model_state = "ONLINE"
+            result = "Solved" if self.episodes < self.max_episodes else "Capped"
+            print(f" -> Episode {result}.")
+            self.episodes = 0
 
+            # Save our model
+            print(" -> Saving Model.")
+            self.save({
+                "model": self.model.to_json(),
+                "target": self.target.to_json(),
+                "actions:": self.action_history
+            })
+
+        # Start the Machine
+        if self.model_state == "ONLINE":
+            start()
+
+        # Stop the Machine
+        if self.running_reward > 40 or self.episodes >= self.max_episodes:
+            finish()
+            return
+
+        # State Machine Logic
+        transitions = {
+            "ONLINE": "RESET",
+            "RESET": "EPISODE",
+            "COMPLETE": "ONLINE",
+        }
+        if self.model_state in transitions:   # Step the Machine
+            self.model_state = transitions[self.model_state]
+        if self.model_state == "EPISODE":
+            episode()
+        if self.model_state == "FRAME":
+            self.frames += 1
+            self._step(game)
+            # Reset if training finished
+            if self.frames >= self.max_frames:
+                self.model_state = "RESET"
         return
 
-    def _step(self, game, state, actions):
+    def _step(self, game):
         """ Advances the model one step. """
+        state = game.get_region(-18, -18, 36, 36)
+
+        # TODO Calculate available actions eg empty spaces.
+        actions = self.action_space
         num_actions = len(actions)
 
         # Use epsilon-greedy for exploration
-
         if (
             self.frames < self.epsilon_random_frames or
             self.epsilon > np.random.rand(1)[0]
@@ -363,6 +395,22 @@ class Architect(Model):
             del self.goal_history[:1]
 
         return True
+
+    def get_state_action(self):
+        """ Returns the queued action state from the model. """
+        return self.model_state
+
+    # reward function -- very important for performance
+    def validate(self):
+        # things to check for: (using random numbers)
+        # -- im scared to make rewards for non immediate goals so model does not find some hack
+        # - produce goal shape (+1)
+        # - produce future goal shape (+0.00001)
+        # - belts connecting (+0.0001)
+        # - belts connecting to hub (+0.0001)
+        # - plus more... idk, could add heps here dpends how complex we want this method to be
+        return 1
+
 
 
 if __name__ == "__main__":

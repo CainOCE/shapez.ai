@@ -44,8 +44,8 @@ STRUCTS = {
     # Structures
     "hub": [
         "╔HUB",
-        "║  ║",
-        "║  ║",
+        "║XX║",
+        "║XX║",
         "╚══╝"
     ],
     # "balancer": "⮤⮥⮣⮡⮦⮧⮠'⮢",
@@ -99,7 +99,7 @@ class GameState():
         """ Returns the game seed in play. """
         return self.seed
 
-    def get_action_space(self):
+    def get_actions(self):
         """ Returns the action space of the current GameState. """
         # TODO Implement Action Space Calculation.
         return [1, 2, 3, 4]
@@ -157,14 +157,13 @@ class GameState():
                         token = TOKENS["beltCnrR"][e['rotation']//90]
                 e['token'] = token
 
-            # Handle Structure Entities
+            # Token Structured Entities
             struct = UNKNOWN_TOKEN
             e['struct'] = token
             if e['type'] in STRUCTS:
                 if e['type'] == "hub":
                     e['token'] = "H"
                     struct = STRUCTS["hub"]
-                # self._place_structure(e['x'], e['y'], 0, 0, TOKENS["hub"])
                 if e['type'] == "balancer":
                     if e['rotation'] == 0:
                         struct = STRUCTS["balancer"][0]

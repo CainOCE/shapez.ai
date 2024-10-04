@@ -14,7 +14,7 @@ const METADATA = {
     minimumGameVersion: ">=1.5.0",
 };
 
-const resources = {
+const RESOURCES = {
     // Colours
     "red": "r",
     "green": "g",
@@ -42,10 +42,10 @@ class Mod extends shapez.Mod {
         );
 
         /* Executes code under development */
-        function test(root) {
+        function test() {
             // Place some various resources as a test.
             let x = 4
-            place_resources(root, [
+            place_resources([
                 {"type": "red", "x": x, "y":-3},
                 {"type": "CuCuCuCu", "x": x, "y":-2},
                 {"type": "RuRuRuRu", "x": x, "y":-1},
@@ -69,15 +69,7 @@ class Mod extends shapez.Mod {
             keyCode: shapez.keyToKeyCode("R"),
             translation: "trigger_reset_event",
             modifiers: { shift: true, },
-            handler: root => {
-                // 'Hard' Reset the game, new seed and instance
-                root.gameState.goBackToMenu();
-
-                // 'Soft' reset the game. retain seed (and resouce locations)
-                // softGameReset(root)
-
-                return shapez.STOP_PROPAGATION;
-            },
+            handler: root => { hardReset(); return shapez.STOP_PROPAGATION; },
         });
 
         /* Register "AI Training" keybinding */
@@ -86,10 +78,7 @@ class Mod extends shapez.Mod {
             keyCode: shapez.keyToKeyCode("T"),
             translation: "trigger_training_event",
             modifiers: { shift: true, },
-            handler: root => {
-                train(root, getGameState(root))
-                return shapez.STOP_PROPAGATION;
-            },
+            handler: root => { train(); return shapez.STOP_PROPAGATION; },
         });
 
         /* Register "Trigger Function" keybinding */
@@ -98,10 +87,7 @@ class Mod extends shapez.Mod {
             keyCode: shapez.keyToKeyCode("Q"),
             translation: "trigger_query_event",
             modifiers: { shift: true, },
-            handler: root => {
-                query(root, getGameState(root));
-                return shapez.STOP_PROPAGATION;
-            },
+            handler: root => { query(); return shapez.STOP_PROPAGATION; },
         });
 
         /* Register "Trigger Function" keybinding */
@@ -110,14 +96,17 @@ class Mod extends shapez.Mod {
             keyCode: shapez.keyToKeyCode("F"),
             translation: "trigger_test_function_event",
             modifiers: { shift: true, },
-            handler: root => {
-                test(root)
-                return shapez.STOP_PROPAGATION;
-            },
+            handler: root => { test(); return shapez.STOP_PROPAGATION; },
         });
 
+        /* Destroys game and returns to menu state. */
+        function hardReset() {
+            window.globalRoot.gameState.stateManager.currentState.goBackToMenu()
+        }
+
         /* Destroys all non-hub map entities and clears progression. */
-        function softGameReset(root) {
+        function softReset() {
+            const root = window.globalRoot
             const E = root.gameState["core"]["root"]["entityMgr"]["entities"]
             // GUARD:
             if (E.size <= 1) {
@@ -158,7 +147,8 @@ class Mod extends shapez.Mod {
          * @param {number} rotation a number in [0, 90, 180, 270]
          * @returns {Entity}
          */
-        function tryPlaceSimpleBuilding(root, building, x, y, rotation=0) {
+        function tryPlaceSimpleBuilding(building, x, y, rotation=0) {
+            const root = window.globalRoot;
             return root.logic.tryPlaceBuilding({
                 origin: new shapez.Vector(x, y),
                 building: shapez.gMetaBuildingRegistry.findByClass(
@@ -172,8 +162,8 @@ class Mod extends shapez.Mod {
         }
 
         /* Places buildings given by the backend as a list solution. */
-        function place_entities(root, entities) {
-            console.dir(shapez.gMetaBuildingRegistry)
+        function place_entities(entities) {
+            const root = window.globalRoot;
             for (let e of entities){
                 const building = shapez.gMetaBuildingRegistry.findByClass(
                     shapez[`Meta${e.type}Building`],
@@ -197,12 +187,13 @@ class Mod extends shapez.Mod {
          * @param {number} y offset
          * @returns {Item}
          */
-        function tryPlaceResource(root, resource, x, y) {
+        function tryPlaceResource(resource, x, y) {
+            const ROOT = window.globalRoot;
             const COLORS = shapez.COLOR_ITEM_SINGLETONS
-            const SHAPES = root.shapeDefinitionMgr
+            const SHAPES = window.globalRoot.shapeDefinitionMgr
 
             // Get Chunk by x, y
-            let map = root.gameState["core"]["root"]["map"]["chunksById"];
+            let map = ROOT.gameState["core"]["root"]["map"]["chunksById"];
             let chunkId = `${Math.floor(x/16)}|${Math.floor(y/16)}`
             let chunk = map.get(chunkId)
             let item = null
@@ -220,7 +211,7 @@ class Mod extends shapez.Mod {
 
             // Resource is a shape
             if (shapez.ShapeDefinition.isValidShortKey(resource)) {
-                item = root.shapeDefinitionMgr.getShapeItemFromDefinition(
+                item = ROOT.shapeDefinitionMgr.getShapeItemFromDefinition(
                     shapez.ShapeDefinition.fromShortKey(resource)
                 )
             }
@@ -231,10 +222,9 @@ class Mod extends shapez.Mod {
         }
 
         /* Places resources at the given locations */
-        function place_resources(root, resources) {
+        function place_resources(resources) {
             for (let r of resources){
                 tryPlaceResource(
-                    root,
                     r.type,
                     r.x, r.y,
                 )
@@ -242,9 +232,8 @@ class Mod extends shapez.Mod {
         }
 
         /* Simplifies the notification system. */
-        function simpleNotification(root, msg) {
-            // Display a message when called
-            root.hud.signals.notification.dispatch(
+        function simpleNotification(msg) {
+            window.globalRoot.hud.signals.notification.dispatch(
                 msg,
                 shapez.enumNotificationType.info
             );
@@ -257,8 +246,8 @@ class Mod extends shapez.Mod {
          * @param {type} gameState - Shapez.__
          * @returns {type} None
          */
-        function getGameState(root) {
-            var gameState = root.gameState;
+        function getGameState() {
+            var gameState = window.globalRoot.gameState;
             if (gameState == null || gameState["key"] !== "InGameState") {
                 return;
             }
@@ -342,17 +331,21 @@ class Mod extends shapez.Mod {
                 body: "ping",
             })
                 .then((response) => response.json())
-                .then((data) => {
-                    // Change indicator to show server comms are live
-                    if (indicator.style.background == "lightgreen") {
-                        update_indicator("green");
-                    } else {
-                        update_indicator("lightgreen");
+                .then((response) => {
+                    console.log(`STATE == ${response}`)
+                    if (response == "ONLINE") {
+                        // Change indicator to show server comms are live
+                        if (indicator.style.background == "lightgreen") {
+                            update_indicator("green");
+                        } else {
+                            update_indicator("lightgreen");
+                        }
                     }
-
-                    // Call a reset if requested.
+                    else if (response == "RESET") { hardReset(); train(); }
+                    else { train(); }
                 })
                 .catch((error) => {
+                    console.log(error)
                     update_indicator("red");
             });
             // NOTE:  It's super annoying that this generates an error
@@ -367,7 +360,8 @@ class Mod extends shapez.Mod {
          * @param {type} gameState - Shapez.__
          * @returns {type} None
          */
-        async function query(root, gameState) {
+        async function query() {
+            const gameState = getGameState();
             update_indicator("yellow");
             var request = await fetch("http://127.0.0.1:5000/query", {
                 method: "POST",
@@ -378,7 +372,7 @@ class Mod extends shapez.Mod {
                 .then((data) => {
                     console.log("Return Data:");
                     console.dir(data)
-                    place_entities(root, data)
+                    place_entities(data)
                     update_indicator("lightgreen");
                 })
                 .catch((error) => {
@@ -393,7 +387,8 @@ class Mod extends shapez.Mod {
          * @param {type} gameState - Shapez.__
          * @returns {type} None
          */
-        async function train(root, gameState) {
+        async function train() {
+            var gameState = getGameState()
             update_indicator("yellow");
             var request = await fetch("http://127.0.0.1:5000/train", {
                 method: "POST",

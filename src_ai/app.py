@@ -34,7 +34,7 @@ class ShapezAI(Flask):
 
         @self.route('/ping', methods=['POST'])
         def on_ping():
-            return jsonify("pong")
+            return jsonify(self.architect.get_state_action())
 
         @self.route('/query', methods=['POST'])
         def on_query():
@@ -61,8 +61,9 @@ class ShapezAI(Flask):
             """ Handles incoming training requests sent by the game instance.
             """
             # Log Query
-            current_time = datetime.now().strftime("%H:%M:%S")
-            print(f"[{current_time}] -> Training Request:")
+            if self.architect.get_state_action() == "ONLINE":
+                current_time = datetime.now().strftime("%H:%M:%S")
+                print(f"[{current_time}] -> Training Request:")
 
             # Train the Architect Model
             self.architect.train(self.game)
