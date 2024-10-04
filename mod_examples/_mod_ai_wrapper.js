@@ -332,7 +332,7 @@ class Mod extends shapez.Mod {
             })
                 .then((response) => response.json())
                 .then((response) => {
-                    console.log(`STATE == ${response}`)
+                    // console.log(`STATE == ${response}`)  // TODO Remove Print
                     if (response == "ONLINE") {
                         // Change indicator to show server comms are live
                         if (indicator.style.background == "lightgreen") {
