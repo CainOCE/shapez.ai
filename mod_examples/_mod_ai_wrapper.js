@@ -12,6 +12,10 @@ const METADATA = {
     id: "shapezai",
     description: "Communicates via REST API with a python backend.",
     minimumGameVersion: ">=1.5.0",
+
+    settings: {
+        paused: false,
+    },
 };
 
 const RESOURCES = {
@@ -30,10 +34,32 @@ const RESOURCES = {
     "WuWuWuWu": "W",    // Windmill
 }
 
+
 class Mod extends shapez.Mod {
+
+    /* Step through Sim Logic */
+    step() {
+        // Unpause -> Step -> Pause
+        this.settings.paused = false;
+
+        // f.call(this, ...args);
+        let root = window.globalRoot;
+        root.time.updateRealtimeNow();
+        root.time.performTicks(
+            root.dynamicTickrate.deltaMs,
+            root.gameState.core.boundInternalTick
+        );
+        root.productionAnalytics.update();
+        root.achievementProxy.update();
+
+        this.settings.paused = true;
+        return shapez.STOP_PROPAGATION;
+    };
 
     init() {
         console.log("Shapez.ai Module Initialized");
+
+        /** Class Overriddes **/
 
         /* Sandbox Mode */
         this.modInterface.replaceMethod(shapez.Blueprint, "getCost", () => 0);
@@ -41,63 +67,38 @@ class Mod extends shapez.Mod {
             shapez.HubGoals, "isRewardUnlocked", () => true
         );
 
+        /* Pausing */
+        this.modInterface.replaceMethod(shapez.GameHUD, "shouldPauseGame",
+            (f) => { return f.call(this) || this.settings.paused; }
+        );
+
+        /** Custom Functions **/
+
         /* Executes code under development */
         function test() {
+            let root = window.globalRoot;
+            let gs = root.gameState
+            console.log(shapez)
+            console.log(root)
             // Place some various resources as a test.
             let x = 4
-            place_resources([
-                {"type": "red", "x": x, "y":-3},
-                {"type": "CuCuCuCu", "x": x, "y":-2},
-                {"type": "RuRuRuRu", "x": x, "y":-1},
-                {"type": "SuSuSuSu", "x": x, "y":0},
-                {"type": "WuWuWuWu", "x": x, "y":1},
+            // place_resources([
+            //     {"type": "red", "x": x, "y":-3},
+            //     {"type": "CuCuCuCu", "x": x, "y":-2},
+            //     {"type": "RuRuRuRu", "x": x, "y":-1},
+            //     {"type": "SuSuSuSu", "x": x, "y":0},
+            //     {"type": "WuWuWuWu", "x": x, "y":1},
 
-                {"type": "CuCuCuCu", "x": x+1, "y":-2},
-                {"type": "RuRuRuRu", "x": x+1, "y":-1},
-                {"type": "SuSuSuSu", "x": x+1, "y":0},
+            //     {"type": "CuCuCuCu", "x": x+1, "y":-2},
+            //     {"type": "RuRuRuRu", "x": x+1, "y":-1},
+            //     {"type": "SuSuSuSu", "x": x+1, "y":0},
 
-                {"type": "CuCuCuCu", "x": x+2, "y":-2},
-                {"type": "RuRuRuRu", "x": x+2, "y":-1},
+            //     {"type": "CuCuCuCu", "x": x+2, "y":-2},
+            //     {"type": "RuRuRuRu", "x": x+2, "y":-1},
 
-                {"type": "CuCuCuCu", "x": x+3, "y":-2},
-            ])
+            //     {"type": "CuCuCuCu", "x": x+3, "y":-2},
+            // ])
         }
-
-        /* Register "Reset Game" keybinding */
-        this.modInterface.registerIngameKeybinding({
-            id: "shapez_ai_reset_trigger",
-            keyCode: shapez.keyToKeyCode("R"),
-            translation: "trigger_reset_event",
-            modifiers: { shift: true, },
-            handler: root => { hardReset(); return shapez.STOP_PROPAGATION; },
-        });
-
-        /* Register "AI Training" keybinding */
-        this.modInterface.registerIngameKeybinding({
-            id: "shapez_ai_training_trigger",
-            keyCode: shapez.keyToKeyCode("T"),
-            translation: "trigger_training_event",
-            modifiers: { shift: true, },
-            handler: root => { train(); return shapez.STOP_PROPAGATION; },
-        });
-
-        /* Register "Trigger Function" keybinding */
-        this.modInterface.registerIngameKeybinding({
-            id: "shapez_ai_query_trigger",
-            keyCode: shapez.keyToKeyCode("Q"),
-            translation: "trigger_query_event",
-            modifiers: { shift: true, },
-            handler: root => { query(); return shapez.STOP_PROPAGATION; },
-        });
-
-        /* Register "Trigger Function" keybinding */
-        this.modInterface.registerIngameKeybinding({
-            id: "shapez_ai_test_function_trigger",
-            keyCode: shapez.keyToKeyCode("F"),
-            translation: "trigger_test_function_event",
-            modifiers: { shift: true, },
-            handler: root => { test(); return shapez.STOP_PROPAGATION; },
-        });
 
         /* Destroys game and returns to menu state. */
         function hardReset() {
@@ -439,5 +440,56 @@ class Mod extends shapez.Mod {
         function update_indicator(col) {
             indicator.style.background = col;
         }
+
+        /* Use our keybinds */
+        const ACTIONS = [
+            {   /* Test */
+                id: "shapez_ai_test_function_trigger",
+                keyCode: shapez.keyToKeyCode("F"),
+                translation: "trigger_test_function_event",
+                modifiers: { shift: true, },
+                handler: root => { test(); return shapez.STOP_PROPAGATION; },
+            },
+            {   /* Pause */
+                id: "shapez_ai_pause_trigger",
+                keyCode: shapez.keyToKeyCode("P"),
+                translation: "trigger_pause_event",
+                modifiers: { shift: true, },
+                handler: root => {
+                    this.settings.paused = !this.settings.paused;
+                    return shapez.STOP_PROPAGATION;
+                },
+            },
+            {   /* Step */
+                id: "shapez_ai_step_trigger",
+                keyCode: shapez.keyToKeyCode("N"),
+                translation: "trigger_step_event",
+                modifiers: { shift: true, },
+                handler: root => { this.step(); return shapez.STOP_PROPAGATION; },
+            },
+            {   /* Reset */
+                id: "shapez_ai_reset_trigger",
+                keyCode: shapez.keyToKeyCode("R"),
+                translation: "trigger_reset_event",
+                modifiers: { shift: true, },
+                handler: root => { hardReset(); return shapez.STOP_PROPAGATION; },
+            },
+            {   /* Query */
+                id: "shapez_ai_query_trigger",
+                keyCode: shapez.keyToKeyCode("Q"),
+                translation: "trigger_query_event",
+                modifiers: { shift: true, },
+                handler: root => { query(); return shapez.STOP_PROPAGATION; },
+            },
+            {   /* Train */
+                id: "shapez_ai_training_trigger",
+                keyCode: shapez.keyToKeyCode("T"),
+                translation: "trigger_training_event",
+                modifiers: { shift: true, },
+                handler: root => { train(); return shapez.STOP_PROPAGATION; },
+            },
+        ]
+        ACTIONS.forEach(k => this.modInterface.registerIngameKeybinding(k));
     }
+
 }
