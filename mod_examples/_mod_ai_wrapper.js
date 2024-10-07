@@ -18,32 +18,14 @@ const METADATA = {
     },
 };
 
-const RESOURCES = {
-    // Colours
-    "red": "r",
-    "green": "g",
-    "blue": "b",
-    // NOTE:  Compound Colors do not exist on the map
-
-    // Base Shapes
-    "RuRuRuRu": "R",    // Rectangle
-    "CuCuCuCu": "C",    // Circle
-    "SuSuSuSu": "S",    // Star
-
-    // Exists only Fractionally on the map eg XxWuXxXx etc
-    "WuWuWuWu": "W",    // Windmill
-}
-
 
 class Mod extends shapez.Mod {
 
     /* Step through Sim Logic */
     step() {
+        let root = window.globalRoot;
         // Unpause -> Step -> Pause
         this.settings.paused = false;
-
-        // f.call(this, ...args);
-        let root = window.globalRoot;
         root.time.updateRealtimeNow();
         root.time.performTicks(
             root.dynamicTickrate.deltaMs,
@@ -51,75 +33,92 @@ class Mod extends shapez.Mod {
         );
         root.productionAnalytics.update();
         root.achievementProxy.update();
-
         this.settings.paused = true;
         return shapez.STOP_PROPAGATION;
     };
 
     init() {
         console.log("Shapez.ai Module Initialized");
+        const mod = this;
 
-        /** Class Overriddes **/
-
-        /* Sandbox Mode */
+        /* Sandbox Mode & Pausing */
         this.modInterface.replaceMethod(shapez.Blueprint, "getCost", () => 0);
         this.modInterface.replaceMethod(
             shapez.HubGoals, "isRewardUnlocked", () => true
         );
-
-        /* Pausing */
         this.modInterface.replaceMethod(shapez.GameHUD, "shouldPauseGame",
             (f) => { return f.call(this) || this.settings.paused; }
         );
-
-        /** Custom Functions **/
 
         /* Executes code under development */
         function test() {
             let root = window.globalRoot;
             let gs = root.gameState
-            console.log(shapez)
-            console.log(root)
+            // console.log(shapez)
+            // console.log(root)
             // Place some various resources as a test.
             let x = 4
-            // place_resources([
-            //     {"type": "red", "x": x, "y":-3},
-            //     {"type": "CuCuCuCu", "x": x, "y":-2},
-            //     {"type": "RuRuRuRu", "x": x, "y":-1},
-            //     {"type": "SuSuSuSu", "x": x, "y":0},
-            //     {"type": "WuWuWuWu", "x": x, "y":1},
+            place_resources([
+                {"type": "red", "x": x, "y":-3},
+                {"type": "CuCuCuCu", "x": x, "y":-2},
+                {"type": "RuRuRuRu", "x": x, "y":-1},
+                {"type": "SuSuSuSu", "x": x, "y":0},
+                {"type": "WuWuWuWu", "x": x, "y":1},
 
-            //     {"type": "CuCuCuCu", "x": x+1, "y":-2},
-            //     {"type": "RuRuRuRu", "x": x+1, "y":-1},
-            //     {"type": "SuSuSuSu", "x": x+1, "y":0},
+                {"type": "CuCuCuCu", "x": x+1, "y":-2},
+                {"type": "RuRuRuRu", "x": x+1, "y":-1},
+                {"type": "SuSuSuSu", "x": x+1, "y":0},
 
-            //     {"type": "CuCuCuCu", "x": x+2, "y":-2},
-            //     {"type": "RuRuRuRu", "x": x+2, "y":-1},
+                {"type": "CuCuCuCu", "x": x+2, "y":-2},
+                {"type": "RuRuRuRu", "x": x+2, "y":-1},
 
-            //     {"type": "CuCuCuCu", "x": x+3, "y":-2},
-            // ])
+                {"type": "CuCuCuCu", "x": x+3, "y":-2},
+            ])
+        }
+
+        async function train() {
+            // Start a training session
+            var gameState = getGameState()
+            update_indicator("yellow");
+
+            // Request a training session on the backend
+            var request = await fetch("http://127.0.0.1:5000/train", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify(gameState),
+            })
+                .then((response) => response.json())
+                .then((response) => {
+                    // Response received
+                    update_indicator("lightgreen");
+                    let state = response["state"]
+                    let status = response["status"]
+                    // let action = response["action"] ?? ""
+                    console.log(`${state} ${status}`)
+
+                    // Handle the backend state machine
+                    if (state == "ONLINE") { return; }
+                    else if (state == "EPISODE") { reset(); train(); }
+                    else if (state == "PRE_FRAME") { train(); }
+                    else if (state == "POST_FRAME") {
+                        // Apply action to game, step X times, return result
+                        for (let i = 0; i < 300; i++) { mod.step(); }
+                        train();
+                    }
+                    else if (state == "COMPLETE") { return; }
+                    else { train(); }
+                })
+                .catch((error) => {
+                    console.error("Request failed:", error);
+                    update_indicator("red");
+                });
         }
 
         /* Destroys game and returns to menu state. */
-        function hardReset() {
+        function reset() {
             window.globalRoot.gameState.stateManager.currentState.goBackToMenu()
         }
 
-        /* Destroys all non-hub map entities and clears progression. */
-        function softReset() {
-            const root = window.globalRoot
-            const E = root.gameState["core"]["root"]["entityMgr"]["entities"]
-            // GUARD:
-            if (E.size <= 1) {
-                return
-            }
-
-            // Remove all Entities
-            E.slice(1).forEach(e => {
-                root.map.removeStaticEntity(e);
-                root.entityMgr.destroyEntity(e);
-            });
-        }
 
         /* Places a ghost entity at the desired location */
         function addGhost(entities = []) { }
@@ -333,7 +332,6 @@ class Mod extends shapez.Mod {
             })
                 .then((response) => response.json())
                 .then((response) => {
-                    // console.log(`STATE == ${response}`)  // TODO Remove Print
                     if (response == "ONLINE") {
                         // Change indicator to show server comms are live
                         if (indicator.style.background == "lightgreen") {
@@ -342,8 +340,6 @@ class Mod extends shapez.Mod {
                             update_indicator("lightgreen");
                         }
                     }
-                    else if (response == "RESET") { hardReset(); train(); }
-                    else { train(); }
                 })
                 .catch((error) => {
                     console.log(error)
@@ -388,7 +384,7 @@ class Mod extends shapez.Mod {
          * @param {type} gameState - Shapez.__
          * @returns {type} None
          */
-        async function train() {
+        async function old_train() {
             var gameState = getGameState()
             update_indicator("yellow");
             var request = await fetch("http://127.0.0.1:5000/train", {
@@ -424,15 +420,6 @@ class Mod extends shapez.Mod {
                 indicator = document.createElement("div");
                 indicator.id = "shapez_ai_indicator";
                 document.body.appendChild(indicator);
-
-                // Cleanup when leaving the Game State
-                this.signals.stateExited.add(exitState => {
-                    if (exitState instanceof shapez.InGameState) {
-                        document.body.removeChild(indicator);
-                        indicator = null;
-                    }
-                });
-
             }
         });
 
@@ -442,13 +429,14 @@ class Mod extends shapez.Mod {
         }
 
         /* Use our keybinds */
+        const STOP = shapez.STOP_PROPAGATION;
         const ACTIONS = [
             {   /* Test */
                 id: "shapez_ai_test_function_trigger",
                 keyCode: shapez.keyToKeyCode("F"),
                 translation: "trigger_test_function_event",
                 modifiers: { shift: true, },
-                handler: root => { test(); return shapez.STOP_PROPAGATION; },
+                handler: root => { test(); return STOP; },
             },
             {   /* Pause */
                 id: "shapez_ai_pause_trigger",
@@ -457,7 +445,7 @@ class Mod extends shapez.Mod {
                 modifiers: { shift: true, },
                 handler: root => {
                     this.settings.paused = !this.settings.paused;
-                    return shapez.STOP_PROPAGATION;
+                    return STOP;
                 },
             },
             {   /* Step */
@@ -465,28 +453,28 @@ class Mod extends shapez.Mod {
                 keyCode: shapez.keyToKeyCode("N"),
                 translation: "trigger_step_event",
                 modifiers: { shift: true, },
-                handler: root => { this.step(); return shapez.STOP_PROPAGATION; },
+                handler: root => { this.step(); return STOP; },
             },
             {   /* Reset */
                 id: "shapez_ai_reset_trigger",
                 keyCode: shapez.keyToKeyCode("R"),
                 translation: "trigger_reset_event",
                 modifiers: { shift: true, },
-                handler: root => { hardReset(); return shapez.STOP_PROPAGATION; },
+                handler: root => { reset(); return STOP; },
             },
             {   /* Query */
                 id: "shapez_ai_query_trigger",
                 keyCode: shapez.keyToKeyCode("Q"),
                 translation: "trigger_query_event",
                 modifiers: { shift: true, },
-                handler: root => { query(); return shapez.STOP_PROPAGATION; },
+                handler: root => { query(); return STOP; },
             },
             {   /* Train */
                 id: "shapez_ai_training_trigger",
                 keyCode: shapez.keyToKeyCode("T"),
                 translation: "trigger_training_event",
                 modifiers: { shift: true, },
-                handler: root => { train(); return shapez.STOP_PROPAGATION; },
+                handler: root => { train(); return STOP; },
             },
         ]
         ACTIONS.forEach(k => this.modInterface.registerIngameKeybinding(k));

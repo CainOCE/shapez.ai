@@ -19,6 +19,7 @@ TERM_COLOUR = {
 }
 TERM_COLOUR_RESET = "\033[0m"
 
+EMPTY = '.'
 EMPTY_TOKEN = '.'
 UNKNOWN_TOKEN = "?"
 BORDER_TOKENS = '◼◢◣◥◤'
@@ -86,11 +87,33 @@ class GameState():
         self.entities = {}
         self.chunks = []
         self.resources = {}
-        self.empties = [] # rhys made array
-        self.size = 32 # some size factor which the model only focusing on that area
-        # so 32 x 32 grid around the hub for example
+        self.empties = []
+        self.size = 32
+        # self.get_region_radial(x=0, y=0, radius=16) gets what you want.
 
 
+    def _CodeChat(self):
+        """ For Discussion Purposes. """
+
+        # to be implemented -- reset game with new seed
+        def reset(self):  return None # This one gets done the game itself.
+        def evaluate_state(self): return 1 # See Model.validate()
+
+        # Ideally get actions from the tokens
+        def get_building_actions(self, building): # See Below
+            all_actions = self.get_actions()  # .split() if necessary
+            basic_actions = self.get_basic_actions()
+            miner = TOKENS["miner"].split()  # The only resource extractor
+            non_miner = ''.join([TOKENS[t] for t in TOKENS if t != "miner"])
+            return None
+
+        def get_possible_actions(self): return None  # -> get_action_space()
+        def step(self, index, action):  return None  # ->
+
+        tile, x, y = ('x', 0, 0)
+        model_action = {"token": tile, "x": x, "Y": y}
+
+        return
 
     def __str__(self):
         """ Representation when the game class is used as a string. """
@@ -107,97 +130,34 @@ class GameState():
         return self.seed
 
     def get_actions(self):
-        """ Returns the action space of the current GameState. """
-        # TODO Implement Action Space Calculation.
+        """ Returns a list of all actions in the current GameState. """
+        return ''.join(TOKENS.values())
 
-        # rhys thoughts: make level limit number of actions available
-        ### need to implement this
-        ###
+    def get_basic_actions(self):
+        """ Returns a basic list of actions. """
+        return ''.join([TOKENS[key] for key in [
+            "belt", "beltCnrL", "beltCnrR", "miner"
+        ]])
 
-        #
-        #
-        return ["↑", "→"]
+    def get_action_space(self, region):
+        """ Returns the action space combination. """
+        action_space = {}
 
-    def get_building_actions(self, building):
-        actions = TOKENS.get('belt').split() + TOKENS.get('beltCnrR').split() + TOKENS.get('beltCnrL').split()
-        actions.remove(building)
-        #actions.append('0') ## delete???
-        return actions
+        # Check each possible position in region1.  Get all position
+        for y, row in enumerate(region):
+            for x, token in enumerate(row):
+                if token == EMPTY_TOKEN:
+                    # If token at x|y is empty, add all token actions to it.
+                    for key in TOKENS:
+                        action_space[f"{x}|{y}"] = self.get_actions()
+                    # TODO Verify if structure can be placed at tile.
 
-    def get_empty_actions(self):
-        # return all possible buidlings to place on an empty square
-        return TOKENS.get('belt').split() + TOKENS.get('beltCnrR').split() + TOKENS.get('beltCnrL').split()
+        return action_space
 
-    # get available actions for resource cell
-    def get_resource_actions(self):
-        return TOKENS.get('miner').split()
-
-    def step(self, index, action):
-        i = index % self.size
-        j = index // self.size
-        # update ECS arrays
-
-        ## this bit is assuming you can replace building maybe implement later
-        if (i,j) in self.entities.keys(): # idk if this is right format?
-            if action == 'delete':
-                self.entities.pop((i, j))
-            else:
-                # replace entity with new building
-                pass
-        elif (i,j) in self.resources.keys():
-            self.entities[(i, j)] = action
-
-        else: # cell must be empty
-            self.empties.remove((i, j))
-            self.entities[(i, j)] = action
-
-        # send action to API????? ---- leaveing this to Cain
-
-
-
-        # apply heuristic,
-        # I assume we only need entities, goals and resources for this:
-        return self.evaluate_state()
-
-    # to be implemented -- reset game with new seed
-    def reset(self):
-        return
-
-    # reward function -- very important for performance
-    def evaluate_state(self):
-        # things to check for: (using random numbers)
-        # -- im scared to make rewards for non immediate goals so model does not find some hack
-        # - produce goal shape (+1)
-        # - produce future goal shape (+0.00001)
-        # - belts connecting (+0.0001)
-        # - belts connecting to hub (+0.0001)
-        # - plus more... idk, could add heps here dpends how complex we want this method to be
-        return 1
-
-
-    # still needs adjust ing for weird strings
-    def get_possible_actions(self):
-        # gonna do this in naive way -- sorry Cain
-
-        state = self.get_region()
-        actions = []
-        # index = i + size + j
-
-        for i in range(len(state)):
-            for j in range(len(state[0])):
-                index = i * len(state) + j
-                cell = state[i,j]
-                # need to reqrite these with value retuned by get_region
-                if cell == "HUB":
-                    pass
-                elif cell == "empty":
-                    actions[index] = self.get_empty_actions()
-
-                elif cell == "resource":
-                    actions[index] = self.get_resource_actions()
-
-        return actions
-
+    def get_token_type(self, token):
+        """ Returns a type from a given token. """
+        token_type = None
+        return None
 
     def import_game_state(self, game_state):
         """ Imports the ECS Entities from the frontend GameState
@@ -260,14 +220,7 @@ class GameState():
                     e['token'] = "H"
                     struct = STRUCTS["hub"]
                 if e['type'] == "balancer":
-                    if e['rotation'] == 0:
-                        struct = STRUCTS["balancer"][0]
-                    if e['rotation'] == 90:
-                        struct = STRUCTS["balancer"][2]
-                    if e['rotation'] == 180:
-                        struct = STRUCTS["balancer"][4]
-                    if e['rotation'] == 270:
-                        struct = STRUCTS["balancer"][6]
+                    struct = STRUCTS["balancer"][2*(e['rotation']//90)]
                 e['struct'] = struct
                 # TODO Think on the above section
 
@@ -308,14 +261,14 @@ class GameState():
 
         return
 
-    def get_region(self, x=0, y=0, width=16, height=16, buffer=8):
+    def get_region(self, x=0, y=0, width=16, height=16, buffer=5):
         """ Returns an arbitrary square region of the game board. """
         xmin, xmax = (x-buffer, x+width+buffer)
         ymin, ymax = (y-buffer, y+height+buffer)
         x_range, y_range = (range(xmin, xmax), range(ymin, ymax))
 
         # Empty grid to hold our tokens with a buffer region for structure gen
-        tokens = [[EMPTY_TOKEN for _ in x_range] for _ in y_range]
+        tokens = [[EMPTY for _ in x_range] for _ in y_range]
 
         # Filter resources within the chunk bounddaries
         for _, resource in self.resources.items():
@@ -342,10 +295,15 @@ class GameState():
         # Remove the buffered region and return
         return [row[buffer:-buffer] for row in tokens[buffer:-buffer]]
 
+    def get_region_radial(self, x=0, y=0, radius=16):
+        """ Returns an square region of the game board with given radius. """
+        return self.get_region(x-radius, y-radius, 2*radius, 2*radius)
+
     def display_region(self, x=0, y=0, width=16, height=16, buffer=5):
         """ Creates a neatly displayed region graphic. """
         tokens = self.get_region(x, y, width, height, buffer)
-        return "\n".join(["".join(row) for row in tokens])
+        output = "\n".join(["".join(row) for row in tokens])
+        return output.replace(EMPTY, EMPTY_TOKEN)
 
     def display_region_info(self, x=0, y=0, width=16, height=16, buffer=5):
         """ Creates a neatly displayed region graphic with additional

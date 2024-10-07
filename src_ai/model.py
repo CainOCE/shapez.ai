@@ -12,12 +12,22 @@ os.environ["KERAS_BACKEND"] = "tensorflow"
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Supress INFO Logs
 
 # pylint: disable=C0413
-import json
 from datetime import datetime
+import json
+import random
+import logging
 import numpy as np
 import tensorflow as tf
 import keras
-import random
+
+# Configure logging
+log = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s:%(levelname)s: %(message)s',
+    datefmt="%H:%M:%S",
+    handlers=[logging.StreamHandler()]
+)
 
 MODEL_STORAGE_DIRECTORY = "./src_ai/models"
 
@@ -136,17 +146,22 @@ class Architect(Model):
         super().__init__()
         self.name = "Architect"
         self.version = "0.4.0"
-        self.model_state = "ONLINE"
+        self.state_machine = "ONLINE"
+
+        # The current state values
+        self.region = None
+        self.action_space = None  # Dict({ "f'{x}|{y}'": ["ABCD"], etc })
+        self.num_actions = 0
+        self.queued_action = None
 
         # Model Training Factors
         self.seed = seed
         self.model = {}
         self.target = {}
         self.optimiser = keras.optimizers.Adam(learning_rate=0.0001)
-        self.action_space = []
         self.episodes = 0
-        self.max_episodes = 5   # TODO was 10
-        self.max_frames = 2  # TODO was 10,000
+        self.max_episodes = 10   # TODO was 10
+        self.max_frames = 20  # TODO was 10,000
         self.running_reward = 0
         self.episode_reward = 0
         self.frames = 0
@@ -176,6 +191,9 @@ class Architect(Model):
         self.rewards_history = []
         self.episode_reward_history = []
 
+    def get_state_machine(self):
+        """ Returns the current state in the state machine. """
+        return self.state_machine
 
     def create_q_model(self, actions):
         """ Creates a Deep Q Style Model as seen in the deepmind paper. """
@@ -197,157 +215,155 @@ class Architect(Model):
             ]
         )
 
-    def train(self, game):
-        """ Begins the model training state machine. """
-        # print(f"STATE -> {self.model_state}")
-            # TODO Unfortunately a state machine was necessary for the bridge
+    def _get_training_status(self):
+        """ Utility:  Gets the current training status. """
+        if self.get_state_machine == "ONLINE":
+            return "Not Training."
+        e, e_max = (self.episodes, self.max_episodes)
+        f, f_max = (self.frames, self.max_frames)
+        a = str(self.queued_action).ljust(20)
+        return f" -> Training:  Ep {e}|{e_max}, Fr {f}|{f_max}, Ac {a}"
 
-        def start():
-            """ Utility:  Executes before a training session. """
+    def train(self, game):
+        """ Begins the model training state machine.
+
+        NOTE: Frankly I hate that this is necessary, but keeping the two
+              systems in lockstep is painful.
+
+        1.  Train:  Sets the GameState as a region and action space.
+        2.  Episode:  Starts an episode that triggers a reset on the client.
+        3.  Pre-Frame:  Queues an action for the client to apply to the game.
+            -> Client Runs Action for X Steps to generate new state for frame.
+        4.  Post-Frame:  New state is validated.
+        """
+
+        # 1.  Train
+        if self.get_state_machine() == "ONLINE":
+            print(" -> Training Request")
+            self.region = game.get_region(-18, -18, 36, 36)
+            self.action_space = game.get_action_space(self.region)
+            self.num_actions = len(self.action_space)
+
             print(" -> Setting Key Values")
             self.seed = game.get_seed()
-            self.action_space = game.get_actions()
             self.episode_reward = 0
 
-            # Create the Deep Q Models
             print(" -> Creating Deep Q Model & Target Model")
-            self.model = self.create_q_model(len(self.action_space))
-            self.target = self.create_q_model(len(self.action_space))
-            # TODO can we game.reset(lvl=1) to target train?
+            self.model = self.create_q_model(self.num_actions)
+            self.target = self.create_q_model(self.num_actions)
+            self.state_machine = "EPISODE"
+            return None
 
-        def episode():
-            """ Utility:  Resets for a fresh training episode. """
+        # 2.  Episode
+        if self.get_state_machine() == "EPISODE":
             self.episodes += 1
 
-            # Print the Episode Details to the console
-            status = f"{self.episodes} of {self.max_episodes}"
-            sys.stdout.write(f"\r -> Training Episode... [{status}]")
-            sys.stdout.flush()
+            # Add some boolean condition checks
+            solved = self.running_reward >= 40
+            capped = self.episodes > self.max_episodes
 
-            # TODO Calculate an episode reward if necessary.
+            # Stop the episode
+            if (solved or capped):
+                self.episodes -= 1
+                print(self._get_training_status())
+                result = "Capped" if capped else "Solved"
+                print(f" -> Training loop result in a '{result}' state")
+
+                # Save our model
+                print(" -> Saving Model.")
+                self.save({
+                    "model": self.model.to_json(),
+                    "target": self.target.to_json(),
+                    "actions:": self.action_history
+                })
+
+                print(" -> Cleaning Episode State.")
+                self.state_machine = "COMPLETE"
+                self.episodes = 0
+                print(" -> Training Complete.")
+                self.state_machine = "ONLINE"
+                return None
+
+            # Start the Episode
+            self.frames = 0
             episode_reward = 1
 
             # Update running reward to check condition for solving
             self.episode_reward_history.append(episode_reward)
             self.episode_reward_history = self.episode_reward_history[-100:]
             self.running_reward = np.mean(self.episode_reward_history)
+            self.state_machine = "PRE_FRAME"
+            return None
 
-            # Reset the frame count and transition
-            self.frames = 0
-            self.model_state = "FRAME"
-
-        def finish():
-            """ Utility:  Executes after a training session. """
-            # Reset our episodes
-            print("\n -> Cleaning Episode State.")
-            self.model_state = "ONLINE"
-            result = "Solved" if self.episodes < self.max_episodes else "Capped"
-            print(f" -> Episode {result}.")
-            self.episodes = 0
-
-            # Save our model
-            print(" -> Saving Model.")
-            self.save({
-                "model": self.model.to_json(),
-                "target": self.target.to_json(),
-                "actions:": self.action_history
-            })
-
-        # Start the Machine
-        if self.model_state == "ONLINE":
-            start()
-
-        # Stop the Machine
-        if self.running_reward > 40 or self.episodes >= self.max_episodes:
-            finish()
-            return
-
-        # State Machine Logic
-        transitions = {
-            "ONLINE": "RESET",
-            "RESET": "EPISODE",
-            "COMPLETE": "ONLINE",
-        }
-        if self.model_state in transitions:   # Step the Machine
-            self.model_state = transitions[self.model_state]
-        if self.model_state == "EPISODE":
-            episode()
-        if self.model_state == "FRAME":
-            self._step(game)
-            # Reset if training finished
+        # 3.  Pre-Frame
+        if self.get_state_machine() == "PRE_FRAME":
+            # Reset if frames are finished
             if self.frames >= self.max_frames:
-                self.model_state = "RESET"
-        return
+                self.state_machine = "EPISODE"
+                return None
+
+            # Execute a pre_frame.  eg get_action
+            self.frames += 1
+
+            # Select Action to return
+            action = self._select_action(self.action_space)
+            self.queued_action = action
+            # e.g. {"type": "Belt", "x": 2, "y": y, "rotation": 270}
+            # action -> {"x", "y", "type", "rotation"}
+
+            print(self._get_training_status(), end="\r")
+            self.state_machine = "POST_FRAME"
+            return self.get_queued_action()
+
+        # X.  -> Client runs between these
+
+        # 4.  Post-Frame
+        if self.get_state_machine() == "POST_FRAME":
+            # Do something with the result of the frame
+
+            # 4.  Validate the action by assigning a score.
+            # reward = self.validate(state)
+            # self.running_reward += reward
+
+            self.state_machine = "PRE_FRAME"
+            return None
+
+        return None
 
     def _step(self, game):
-        """ Advances the model one step. """
-        self.frames += 1
-
-        """ Rhys Notes:
-        things to check:
-        - DO I NEED TO RESET ALL HYPERPARAMETERS TO ORIGINAL VALUES AT START OF EACH EPISODE????
-
-        - HOW DOES MODEL RETURNS BEST ACTION? WHAT IS THE FORMAT?
-
-        - i think we do need a state because thats how tensorflow works to use prebuilt methods
+        """ Advances the model one step.
+        Rhys Notes:
+        - DO I NEED TO RESET ALL HYPERPARAMETERS TO ORIGINAL VALUES AT START
+        OF EACH EPISODE????
+        - i think we do need a state because thats how tensorflow works to use
+        prebuilt methods
         """
+        # 1.  Get state and action space from current GameState
+        state = self.region
 
-        # TODO Calculate available actions eg empty spaces.
-        actions = self.action_space
-        num_actions = len(actions)
+        # 2.  Choose available action for frame
+        action = self._select_action(self.action_space)
+        self.queued_action = action
 
-        state = game.get_region(-18, -18, 36, 36)
-        action = None # define action before use
-        pos = None # position of action (pos = i * game.size + j)
+        # 3.  Apply the action
+        # state_next = game.step(self.queued_action)
+        return
 
-        # Use epsilon-greedy for exploration
-        if (
-            self.frames < self.epsilon_random_frames
-            or self.epsilon > np.random.rand(1)[0]
-        ):
-            # Take random action
-            possible_actions = game.get_possible_actions()
-            pos = np.random.randint(game.size**2)
-            action = random.choice(possible_actions[pos])
-        else:
-            # Predict action Q-values
-            # From environment state
-            state_tensor = keras.ops.convert_to_tensor(state)
-            state_tensor = keras.ops.expand_dims(state_tensor, 0)
-            action_probs = self.model(state_tensor, training=False)
-            # Take best action
-            action = keras.ops.argmax(action_probs[0]).numpy()
-            # TODO How to adjust action probabilities eg action weights
-            # how is this aciton being returned? we need like (x, y, action)
+        # state_next = np.array(state_next)
+        # state_next, reward, goal = (state, 0, 0)
 
-        print(action)  # TODO Print debug, remove later.
-
-        # Decay probability of taking random action
-        self.epsilon -= self.epsilon_interval / self.epsilon_greedy_frames
-        self.epsilon = max(self.epsilon, self.epsilon_min)
-
-        # Apply the sampled action in our environment
-        # TODO Apply the action in game or validate heuristically.
-
-        reward = game.step(pos, action)
-
-        state_next, reward, goal = (state, 0, 0)
-        # state_next, reward, goal = game.validate()
-        state_next = np.array(state_next)
+        # 4.  Validate the action by assigning a score.
+        reward = self.validate(state)
         self.running_reward += reward
 
-        # Save actions and states in replay buffer
-        self.action_history.append(action)
-        self.state_history.append(state)
-        self.state_next_history.append(state_next)
-        self.goal_history.append(goal)
-        self.rewards_history.append(reward)
-        state = state_next
+        # 5.  Log the events
+        self.log(state, state_next, action, reward, goal)
 
-
+        # state = state_next
         # Update every fourth frame and once batch size is over 32
         if (self.frames % self.update_after_actions == 0 and
             len(self.goal_history) > self.batch_size):
+
             # Get indices of samples for replay buffers
             indices = np.random.choice(
                 range(len(self.goal_history)), size=self.batch_size
@@ -408,21 +424,49 @@ class Architect(Model):
                 self.frames)
             )
 
-        # Limit the state and reward history
-        if len(self.rewards_history) > self.max_memory_length:
-            del self.state_history[:1]
-            del self.state_next_history[:1]
-            del self.rewards_history[:1]
-            del self.goal_history[:1]
-
         return
 
-    def get_state_action(self):
-        """ Returns the queued action state from the model. """
-        return self.model_state
+    def _select_action(self, action_space):
+        """ Select an action using an epsilon-greedy strategy. """
+        action = None
+
+        # TODO Naive Random Implementation, fix for Epsilon Greedy
+        position = random.choice(list(action_space.keys()))
+        action = random.choice(action_space[position])
+        direction = random.choice([0, 90, 180, 270])
+        # Get direction from action
+
+        return {position: action}
+
+        # Take Random or attempt prediction.
+        if (self.frames < self.epsilon_random_frames or
+            self.epsilon > np.random.rand(1)[0]):
+            # Take random action
+            action = random.choice(action_space)
+        else:
+            # Predict action Q-Value from Environment
+            state_tensor = keras.ops.convert_to_tensor(state)
+            state_tensor = keras.ops.expand_dims(state_tensor, 0)
+            action_probs = self.model(state_tensor, training=False)
+                # TODO Adjust actions by weights
+            # Take best action
+            action = keras.ops.argmax(action_probs[0]).numpy()
+
+        # Decay probability of taking random action
+        self.epsilon -= self.epsilon_interval / self.epsilon_greedy_frames
+        self.epsilon = max(self.epsilon, self.epsilon_min)
+
+        return action
+
+    def get_queued_action(self):
+        """ Returns the queued action from the model and removes it. """
+        action = self.queued_action
+        self.queued_action = None
+        return action
 
     # reward function -- very important for performance
-    def validate(self):
+    def validate(self, state):
+        return 1
         # things to check for: (using random numbers)
         # -- im scared to make rewards for non immediate goals so model does not find some hack
         # - produce goal shape (+1)
@@ -430,8 +474,22 @@ class Architect(Model):
         # - belts connecting (+0.0001)
         # - belts connecting to hub (+0.0001)
         # - plus more... idk, could add heps here dpends how complex we want this method to be
-        return 1
 
+    def log(self, state, state_next, action, reward, goal):
+        """ Updates the logged event history. """
+        # Update the logs
+        self.action_history.append(action)
+        self.state_history.append(state)
+        self.state_next_history.append(state_next)
+        self.goal_history.append(goal)
+        self.rewards_history.append(reward)
+
+        # Limit the state and reward history
+        if len(self.rewards_history) > self.max_memory_length:
+            del self.state_history[:1]
+            del self.state_next_history[:1]
+            del self.rewards_history[:1]
+            del self.goal_history[:1]
 
 
 if __name__ == "__main__":
