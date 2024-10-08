@@ -219,8 +219,11 @@ class Architect(Model):
             sys.stdout.write(f"\r -> Training Episode... [{status}]")
             sys.stdout.flush()
 
+            seed = game.get_seed() # get seed, mite be useful
+            state = game.get_region(-18, -18, 36, 36) # get initial state
+
             # Conduct X _steps() per episode.
-            for _ in range(1, self.max_steps_per_episode):
+            for frame in range(1, self.max_steps_per_episode):
                 """
                 things to check:
                 - DO I NEED TO RESET ALL HYPERPARAMETERS TO ORIGINAL VALUES AT START OF EACH EPISODE????
@@ -231,14 +234,14 @@ class Architect(Model):
                 
                 """
 
-                self.frames += 1
+                self.frames = frame
                 action = None # define action before use
                 pos = None # position of action (pos = i * game.size + j)
                 # Use epsilon-greedy for exploration
                 if (self.frames < self.epsilon_random_frames or self.epsilon > np.random.rand(1)[0]):
                     # Take random action
                     possible_actions = game.get_possible_actions()
-                    pos = np.random.randint(game.size**2)
+                    pos = np.random.randint(game.size**2) # pick random cell to act on, actions depend on what is in cell (reduce action space)
                     action = random.choice(possible_actions[pos])
                 else:
                     # Predict action Q-values
@@ -348,16 +351,12 @@ class Architect(Model):
 
                 
    
-            self.frames = 0
-
-            self.episodes += 1
-
-            
+            self.frames = 0 # reset frames
+            self.episodes += 1 # move to next episode
 
             # Manually Reset the game for a training episode.
             # game.reset()  # TODO can we game.reset(lvl=1) to target train?
-            seed = game.get_seed()
-            state = game.get_region(-18, -18, 36, 36)
+            
 
             
             # Update running reward to check condition for solving

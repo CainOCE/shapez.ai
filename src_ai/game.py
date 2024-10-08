@@ -173,6 +173,8 @@ class GameState():
         # - belts connecting (+0.0001)
         # - belts connecting to hub (+0.0001)
         # - plus more... idk, could add heps here dpends how complex we want this method to be
+        
+        # balance between accurate reward vs time to evaluate
         return 1
 
 
