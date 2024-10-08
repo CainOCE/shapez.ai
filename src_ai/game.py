@@ -19,6 +19,7 @@ TERM_COLOUR = {
 }
 TERM_COLOUR_RESET = "\033[0m"
 
+EMPTY = '.'
 EMPTY_TOKEN = '.'
 UNKNOWN_TOKEN = "?"
 BORDER_TOKENS = '◼◢◣◥◤'
@@ -46,8 +47,8 @@ STRUCTS = {
     # Structures
     "hub": [
         "╔HUB",
-        "║  ║",
-        "║  ║",
+        "║XX║",
+        "║XX║",
         "╚══╝"
     ],
     # "balancer": "⮤⮥⮣⮡⮦⮧⮠'⮢",
@@ -75,7 +76,7 @@ STRUCTS = {
 
 
 class GameState():
-    """ Defines the gameState object in a form malleable my an AI Model.  """
+    """ Defines the gameState object in a form malleable by an AI Model.  """
     def __init__(self):
         # General Game State Information
         self.seed = None
@@ -86,17 +87,38 @@ class GameState():
         self.entities = {}
         self.chunks = []
         self.resources = {}
-        self.empties = [] # rhys made array
-        self.size = 32 # some size factor which the model only focusing on that area
-        # so 32 x 32 grid around the hub for example 
-    
+        self.empties = []
+        self.size = 32
+        # self.get_region_radial(x=0, y=0, radius=16) gets what you want.
 
+
+    def _CodeChat(self):
+        """ For Discussion Purposes. """
+
+        # to be implemented -- reset game with new seed
+        def reset(self):  return None # This one gets done the game itself.
+        def evaluate_state(self): return 1 # See Model.validate()
+
+        # Ideally get actions from the tokens
+        def get_building_actions(self, building): # See Below
+            all_actions = self.get_actions()  # .split() if necessary
+            basic_actions = self.get_basic_actions()
+            miner = TOKENS["miner"].split()  # The only resource extractor
+            non_miner = ''.join([TOKENS[t] for t in TOKENS if t != "miner"])
+            return None
+
+        def get_possible_actions(self): return None  # -> get_action_space()
+        def step(self, index, action):  return None  # ->
+
+        tile, x, y = ('x', 0, 0)
+        model_action = {"token": tile, "x": x, "Y": y}
+
+        return
 
     def __str__(self):
         """ Representation when the game class is used as a string. """
-        # TODO Give a brief description of the current goal.
-       # goal_desc = f"'{self.goal["item"]}' ({self.goal["amount"]})"
-        goal_desc = 'a'
+        goal_item, goal_amount = (self.goal["item"], self.goal["amount"])
+        goal_desc = f"\'{goal_item}\' ({goal_amount})"
         out = f"GAME[seed={self.seed}]: LVL {self.level} -> {goal_desc}\n"
         out += f"  - {len(self.entities)} Current Entities\n"
         out += f"  - {len(self.chunks)} Active Chunks\n"
@@ -107,6 +129,7 @@ class GameState():
         """ Returns the game seed in play. """
         return self.seed
 
+<<<<<<< HEAD
     def get_all_actions(self):
         """ Returns the action space of the current GameState. """
         # TODO Implement Action Space Calculation.
@@ -200,7 +223,37 @@ class GameState():
                     actions[index] = self.get_resource_actions()
 
         return actions
+=======
+    def get_actions(self):
+        """ Returns a list of all actions in the current GameState. """
+        return ''.join(TOKENS.values())
 
+    def get_basic_actions(self):
+        """ Returns a basic list of actions. """
+        return ''.join([TOKENS[key] for key in [
+            "belt", "beltCnrL", "beltCnrR", "miner"
+        ]])
+
+    def get_action_space(self, region):
+        """ Returns the action space combination. """
+        action_space = {}
+>>>>>>> a3e108a9a8e5ec55adf5eb4290c5a9da6c223b93
+
+        # Check each possible position in region1.  Get all position
+        for y, row in enumerate(region):
+            for x, token in enumerate(row):
+                if token == EMPTY_TOKEN:
+                    # If token at x|y is empty, add all token actions to it.
+                    for key in TOKENS:
+                        action_space[f"{x}|{y}"] = self.get_actions()
+                    # TODO Verify if structure can be placed at tile.
+
+        return action_space
+
+    def get_token_type(self, token):
+        """ Returns a type from a given token. """
+        token_type = None
+        return None
 
     def import_game_state(self, game_state):
         """ Imports the ECS Entities from the frontend GameState
@@ -255,23 +308,15 @@ class GameState():
                         token = TOKENS["beltCnrR"][e['rotation']//90]
                 e['token'] = token
 
-            # Handle Structure Entities
+            # Token Structured Entities
             struct = UNKNOWN_TOKEN
             e['struct'] = token
             if e['type'] in STRUCTS:
                 if e['type'] == "hub":
                     e['token'] = "H"
                     struct = STRUCTS["hub"]
-                # self._place_structure(e['x'], e['y'], 0, 0, TOKENS["hub"])
                 if e['type'] == "balancer":
-                    if e['rotation'] == 0:
-                        struct = STRUCTS["balancer"][0]
-                    if e['rotation'] == 90:
-                        struct = STRUCTS["balancer"][2]
-                    if e['rotation'] == 180:
-                        struct = STRUCTS["balancer"][4]
-                    if e['rotation'] == 270:
-                        struct = STRUCTS["balancer"][6]
+                    struct = STRUCTS["balancer"][2*(e['rotation']//90)]
                 e['struct'] = struct
                 # TODO Think on the above section
 
@@ -312,14 +357,14 @@ class GameState():
 
         return
 
-    def get_region(self, x=0, y=0, width=16, height=16, buffer=8):
+    def get_region(self, x=0, y=0, width=16, height=16, buffer=5):
         """ Returns an arbitrary square region of the game board. """
         xmin, xmax = (x-buffer, x+width+buffer)
         ymin, ymax = (y-buffer, y+height+buffer)
         x_range, y_range = (range(xmin, xmax), range(ymin, ymax))
 
         # Empty grid to hold our tokens with a buffer region for structure gen
-        tokens = [[EMPTY_TOKEN for _ in x_range] for _ in y_range]
+        tokens = [[EMPTY for _ in x_range] for _ in y_range]
 
         # Filter resources within the chunk bounddaries
         for _, resource in self.resources.items():
@@ -346,10 +391,15 @@ class GameState():
         # Remove the buffered region and return
         return [row[buffer:-buffer] for row in tokens[buffer:-buffer]]
 
+    def get_region_radial(self, x=0, y=0, radius=16):
+        """ Returns an square region of the game board with given radius. """
+        return self.get_region(x-radius, y-radius, 2*radius, 2*radius)
+
     def display_region(self, x=0, y=0, width=16, height=16, buffer=5):
         """ Creates a neatly displayed region graphic. """
         tokens = self.get_region(x, y, width, height, buffer)
-        return "\n".join(["".join(row) for row in tokens])
+        output = "\n".join(["".join(row) for row in tokens])
+        return output.replace(EMPTY, EMPTY_TOKEN)
 
     def display_region_info(self, x=0, y=0, width=16, height=16, buffer=5):
         """ Creates a neatly displayed region graphic with additional

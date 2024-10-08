@@ -12,40 +12,53 @@ const METADATA = {
     id: "shapezai",
     description: "Communicates via REST API with a python backend.",
     minimumGameVersion: ">=1.5.0",
+
+    settings: {
+        paused: false,
+    },
 };
 
-const resources = {
-    // Colours
-    "red": "r",
-    "green": "g",
-    "blue": "b",
-    // NOTE:  Compound Colors do not exist on the map
-
-    // Base Shapes
-    "RuRuRuRu": "R",    // Rectangle
-    "CuCuCuCu": "C",    // Circle
-    "SuSuSuSu": "S",    // Star
-
-    // Exists only Fractionally on the map eg XxWuXxXx etc
-    "WuWuWuWu": "W",    // Windmill
-}
 
 class Mod extends shapez.Mod {
 
+    /* Step through Sim Logic */
+    step() {
+        let root = window.globalRoot;
+        // Unpause -> Step -> Pause
+        this.settings.paused = false;
+        root.time.updateRealtimeNow();
+        root.time.performTicks(
+            root.dynamicTickrate.deltaMs,
+            root.gameState.core.boundInternalTick
+        );
+        root.productionAnalytics.update();
+        root.achievementProxy.update();
+        this.settings.paused = true;
+        return shapez.STOP_PROPAGATION;
+    };
+
     init() {
         console.log("Shapez.ai Module Initialized");
+        const mod = this;
 
-        /* Sandbox Mode */
+        /* Sandbox Mode & Pausing */
         this.modInterface.replaceMethod(shapez.Blueprint, "getCost", () => 0);
         this.modInterface.replaceMethod(
             shapez.HubGoals, "isRewardUnlocked", () => true
         );
+        this.modInterface.replaceMethod(shapez.GameHUD, "shouldPauseGame",
+            (f) => { return f.call(this) || this.settings.paused; }
+        );
 
         /* Executes code under development */
-        function test(root) {
+        function test() {
+            let root = window.globalRoot;
+            let gs = root.gameState
+            // console.log(shapez)
+            // console.log(root)
             // Place some various resources as a test.
             let x = 4
-            place_resources(root, [
+            place_resources([
                 {"type": "red", "x": x, "y":-3},
                 {"type": "CuCuCuCu", "x": x, "y":-2},
                 {"type": "RuRuRuRu", "x": x, "y":-1},
@@ -63,73 +76,49 @@ class Mod extends shapez.Mod {
             ])
         }
 
-        /* Register "Reset Game" keybinding */
-        this.modInterface.registerIngameKeybinding({
-            id: "shapez_ai_reset_trigger",
-            keyCode: shapez.keyToKeyCode("R"),
-            translation: "trigger_reset_event",
-            modifiers: { shift: true, },
-            handler: root => {
-                // 'Hard' Reset the game, new seed and instance
-                root.gameState.goBackToMenu();
+        async function train() {
+            // Start a training session
+            var gameState = getGameState()
+            update_indicator("yellow");
 
-                // 'Soft' reset the game. retain seed (and resouce locations)
-                // softGameReset(root)
+            // Request a training session on the backend
+            var request = await fetch("http://127.0.0.1:5000/train", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify(gameState),
+            })
+                .then((response) => response.json())
+                .then((response) => {
+                    // Response received
+                    update_indicator("lightgreen");
+                    let state = response["state"]
+                    let status = response["status"]
+                    // let action = response["action"] ?? ""
+                    console.log(`${state} ${status}`)
 
-                return shapez.STOP_PROPAGATION;
-            },
-        });
-
-        /* Register "AI Training" keybinding */
-        this.modInterface.registerIngameKeybinding({
-            id: "shapez_ai_training_trigger",
-            keyCode: shapez.keyToKeyCode("T"),
-            translation: "trigger_training_event",
-            modifiers: { shift: true, },
-            handler: root => {
-                train(root, getGameState(root))
-                return shapez.STOP_PROPAGATION;
-            },
-        });
-
-        /* Register "Trigger Function" keybinding */
-        this.modInterface.registerIngameKeybinding({
-            id: "shapez_ai_query_trigger",
-            keyCode: shapez.keyToKeyCode("Q"),
-            translation: "trigger_query_event",
-            modifiers: { shift: true, },
-            handler: root => {
-                query(root, getGameState(root));
-                return shapez.STOP_PROPAGATION;
-            },
-        });
-
-        /* Register "Trigger Function" keybinding */
-        this.modInterface.registerIngameKeybinding({
-            id: "shapez_ai_test_function_trigger",
-            keyCode: shapez.keyToKeyCode("F"),
-            translation: "trigger_test_function_event",
-            modifiers: { shift: true, },
-            handler: root => {
-                test(root)
-                return shapez.STOP_PROPAGATION;
-            },
-        });
-
-        /* Destroys all non-hub map entities and clears progression. */
-        function softGameReset(root) {
-            const E = root.gameState["core"]["root"]["entityMgr"]["entities"]
-            // GUARD:
-            if (E.size <= 1) {
-                return
-            }
-
-            // Remove all Entities
-            E.slice(1).forEach(e => {
-                root.map.removeStaticEntity(e);
-                root.entityMgr.destroyEntity(e);
-            });
+                    // Handle the backend state machine
+                    if (state == "ONLINE") { return; }
+                    else if (state == "EPISODE") { reset(); train(); }
+                    else if (state == "PRE_FRAME") { train(); }
+                    else if (state == "POST_FRAME") {
+                        // Apply action to game, step X times, return result
+                        for (let i = 0; i < 300; i++) { mod.step(); }
+                        train();
+                    }
+                    else if (state == "COMPLETE") { return; }
+                    else { train(); }
+                })
+                .catch((error) => {
+                    console.error("Request failed:", error);
+                    update_indicator("red");
+                });
         }
+
+        /* Destroys game and returns to menu state. */
+        function reset() {
+            window.globalRoot.gameState.stateManager.currentState.goBackToMenu()
+        }
+
 
         /* Places a ghost entity at the desired location */
         function addGhost(entities = []) { }
@@ -158,7 +147,8 @@ class Mod extends shapez.Mod {
          * @param {number} rotation a number in [0, 90, 180, 270]
          * @returns {Entity}
          */
-        function tryPlaceSimpleBuilding(root, building, x, y, rotation=0) {
+        function tryPlaceSimpleBuilding(building, x, y, rotation=0) {
+            const root = window.globalRoot;
             return root.logic.tryPlaceBuilding({
                 origin: new shapez.Vector(x, y),
                 building: shapez.gMetaBuildingRegistry.findByClass(
@@ -172,8 +162,8 @@ class Mod extends shapez.Mod {
         }
 
         /* Places buildings given by the backend as a list solution. */
-        function place_entities(root, entities) {
-            console.dir(shapez.gMetaBuildingRegistry)
+        function place_entities(entities) {
+            const root = window.globalRoot;
             for (let e of entities){
                 const building = shapez.gMetaBuildingRegistry.findByClass(
                     shapez[`Meta${e.type}Building`],
@@ -197,12 +187,13 @@ class Mod extends shapez.Mod {
          * @param {number} y offset
          * @returns {Item}
          */
-        function tryPlaceResource(root, resource, x, y) {
+        function tryPlaceResource(resource, x, y) {
+            const ROOT = window.globalRoot;
             const COLORS = shapez.COLOR_ITEM_SINGLETONS
-            const SHAPES = root.shapeDefinitionMgr
+            const SHAPES = window.globalRoot.shapeDefinitionMgr
 
             // Get Chunk by x, y
-            let map = root.gameState["core"]["root"]["map"]["chunksById"];
+            let map = ROOT.gameState["core"]["root"]["map"]["chunksById"];
             let chunkId = `${Math.floor(x/16)}|${Math.floor(y/16)}`
             let chunk = map.get(chunkId)
             let item = null
@@ -220,7 +211,7 @@ class Mod extends shapez.Mod {
 
             // Resource is a shape
             if (shapez.ShapeDefinition.isValidShortKey(resource)) {
-                item = root.shapeDefinitionMgr.getShapeItemFromDefinition(
+                item = ROOT.shapeDefinitionMgr.getShapeItemFromDefinition(
                     shapez.ShapeDefinition.fromShortKey(resource)
                 )
             }
@@ -231,10 +222,9 @@ class Mod extends shapez.Mod {
         }
 
         /* Places resources at the given locations */
-        function place_resources(root, resources) {
+        function place_resources(resources) {
             for (let r of resources){
                 tryPlaceResource(
-                    root,
                     r.type,
                     r.x, r.y,
                 )
@@ -242,9 +232,8 @@ class Mod extends shapez.Mod {
         }
 
         /* Simplifies the notification system. */
-        function simpleNotification(root, msg) {
-            // Display a message when called
-            root.hud.signals.notification.dispatch(
+        function simpleNotification(msg) {
+            window.globalRoot.hud.signals.notification.dispatch(
                 msg,
                 shapez.enumNotificationType.info
             );
@@ -257,8 +246,8 @@ class Mod extends shapez.Mod {
          * @param {type} gameState - Shapez.__
          * @returns {type} None
          */
-        function getGameState(root) {
-            var gameState = root.gameState;
+        function getGameState() {
+            var gameState = window.globalRoot.gameState;
             if (gameState == null || gameState["key"] !== "InGameState") {
                 return;
             }
@@ -342,17 +331,18 @@ class Mod extends shapez.Mod {
                 body: "ping",
             })
                 .then((response) => response.json())
-                .then((data) => {
-                    // Change indicator to show server comms are live
-                    if (indicator.style.background == "lightgreen") {
-                        update_indicator("green");
-                    } else {
-                        update_indicator("lightgreen");
+                .then((response) => {
+                    if (response == "ONLINE") {
+                        // Change indicator to show server comms are live
+                        if (indicator.style.background == "lightgreen") {
+                            update_indicator("green");
+                        } else {
+                            update_indicator("lightgreen");
+                        }
                     }
-
-                    // Call a reset if requested.
                 })
                 .catch((error) => {
+                    console.log(error)
                     update_indicator("red");
             });
             // NOTE:  It's super annoying that this generates an error
@@ -367,7 +357,8 @@ class Mod extends shapez.Mod {
          * @param {type} gameState - Shapez.__
          * @returns {type} None
          */
-        async function query(root, gameState) {
+        async function query() {
+            const gameState = getGameState();
             update_indicator("yellow");
             var request = await fetch("http://127.0.0.1:5000/query", {
                 method: "POST",
@@ -378,7 +369,7 @@ class Mod extends shapez.Mod {
                 .then((data) => {
                     console.log("Return Data:");
                     console.dir(data)
-                    place_entities(root, data)
+                    place_entities(data)
                     update_indicator("lightgreen");
                 })
                 .catch((error) => {
@@ -393,7 +384,8 @@ class Mod extends shapez.Mod {
          * @param {type} gameState - Shapez.__
          * @returns {type} None
          */
-        async function train(root, gameState) {
+        async function old_train() {
+            var gameState = getGameState()
             update_indicator("yellow");
             var request = await fetch("http://127.0.0.1:5000/train", {
                 method: "POST",
@@ -428,15 +420,6 @@ class Mod extends shapez.Mod {
                 indicator = document.createElement("div");
                 indicator.id = "shapez_ai_indicator";
                 document.body.appendChild(indicator);
-
-                // Cleanup when leaving the Game State
-                this.signals.stateExited.add(exitState => {
-                    if (exitState instanceof shapez.InGameState) {
-                        document.body.removeChild(indicator);
-                        indicator = null;
-                    }
-                });
-
             }
         });
 
@@ -444,5 +427,57 @@ class Mod extends shapez.Mod {
         function update_indicator(col) {
             indicator.style.background = col;
         }
+
+        /* Use our keybinds */
+        const STOP = shapez.STOP_PROPAGATION;
+        const ACTIONS = [
+            {   /* Test */
+                id: "shapez_ai_test_function_trigger",
+                keyCode: shapez.keyToKeyCode("F"),
+                translation: "trigger_test_function_event",
+                modifiers: { shift: true, },
+                handler: root => { test(); return STOP; },
+            },
+            {   /* Pause */
+                id: "shapez_ai_pause_trigger",
+                keyCode: shapez.keyToKeyCode("P"),
+                translation: "trigger_pause_event",
+                modifiers: { shift: true, },
+                handler: root => {
+                    this.settings.paused = !this.settings.paused;
+                    return STOP;
+                },
+            },
+            {   /* Step */
+                id: "shapez_ai_step_trigger",
+                keyCode: shapez.keyToKeyCode("N"),
+                translation: "trigger_step_event",
+                modifiers: { shift: true, },
+                handler: root => { this.step(); return STOP; },
+            },
+            {   /* Reset */
+                id: "shapez_ai_reset_trigger",
+                keyCode: shapez.keyToKeyCode("R"),
+                translation: "trigger_reset_event",
+                modifiers: { shift: true, },
+                handler: root => { reset(); return STOP; },
+            },
+            {   /* Query */
+                id: "shapez_ai_query_trigger",
+                keyCode: shapez.keyToKeyCode("Q"),
+                translation: "trigger_query_event",
+                modifiers: { shift: true, },
+                handler: root => { query(); return STOP; },
+            },
+            {   /* Train */
+                id: "shapez_ai_training_trigger",
+                keyCode: shapez.keyToKeyCode("T"),
+                translation: "trigger_training_event",
+                modifiers: { shift: true, },
+                handler: root => { train(); return STOP; },
+            },
+        ]
+        ACTIONS.forEach(k => this.modInterface.registerIngameKeybinding(k));
     }
+
 }
