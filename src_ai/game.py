@@ -129,101 +129,6 @@ class GameState():
         """ Returns the game seed in play. """
         return self.seed
 
-<<<<<<< HEAD
-    def get_all_actions(self):
-        """ Returns the action space of the current GameState. """
-        # TODO Implement Action Space Calculation.
-
-        # rhys thoughts: make level limit number of actions available
-        ### need to implement this
-        ###
-
-        #
-        #
-        return ["↑", "→"]
-    
-    def get_building_actions(self, building):
-        actions = TOKENS.get('belt').split() + TOKENS.get('beltCnrR').split() + TOKENS.get('beltCnrL').split() 
-        actions.remove(building)
-        #actions.append('0') ## delete???
-        return actions
-
-    def get_empty_actions(self):
-        # return all possible buidlings to place on an empty square
-        return TOKENS.get('belt').split() + TOKENS.get('beltCnrR').split() + TOKENS.get('beltCnrL').split() 
-    
-    # get available actions for resource cell
-    def get_resource_actions(self):
-        return TOKENS.get('miner').split()
-    
-    def step(self, index, action):
-        i = index % self.size
-        j = index // self.size
-        # update ECS arrays
-
-        ## this bit is assuming you can replace building maybe implement later
-        if (i,j) in self.entities.keys(): # idk if this is right format?
-            if action == 'delete':
-                self.entities.pop((i, j))
-            else:
-                # replace entity with new building
-                pass
-        elif (i,j) in self.resources.keys():
-            self.entities[(i, j)] = action
-
-        else: # cell must be empty
-            self.empties.remove((i, j))
-            self.entities[(i, j)] = action
-
-        # send action to API????? ---- leaveing this to Cain
-
-
-
-        # apply heuristic, 
-        # I assume we only need entities, goals and resources for this:
-        return self.evaluate_state()
-    
-    # to be implemented -- reset game with new seed
-    def reset(self):
-        return
-        
-    # reward function -- very important for performance
-    def evaluate_state(self):
-        # things to check for: (using random numbers) 
-        # -- im scared to make rewards for non immediate goals so model does not find some hack 
-        # - produce goal shape (+1)
-        # - produce future goal shape (+0.00001)
-        # - belts connecting (+0.0001)
-        # - belts connecting to hub (+0.0001)
-        # - plus more... idk, could add heps here dpends how complex we want this method to be
-        
-        # balance between accurate reward vs time to evaluate
-        return 1
-
-
-    # still needs adjust ing for weird strings
-    def get_possible_actions(self):
-        # gonna do this in naive way -- sorry Cain
-        
-        state = self.get_region()
-        actions = []
-        # index = i + size + j
-
-        for i in range(len(state)):
-            for j in range(len(state[0])):
-                index = i * len(state) + j
-                cell = state[i,j]
-                # need to reqrite these with value retuned by get_region
-                if cell == "HUB":  
-                    pass
-                elif cell == "empty":
-                    actions[index] = self.get_empty_actions()
-
-                elif cell == "resource":
-                    actions[index] = self.get_resource_actions()
-
-        return actions
-=======
     def get_actions(self):
         """ Returns a list of all actions in the current GameState. """
         return ''.join(TOKENS.values())
@@ -237,7 +142,6 @@ class GameState():
     def get_action_space(self, region):
         """ Returns the action space combination. """
         action_space = {}
->>>>>>> a3e108a9a8e5ec55adf5eb4290c5a9da6c223b93
 
         # Check each possible position in region1.  Get all position
         for y, row in enumerate(region):
