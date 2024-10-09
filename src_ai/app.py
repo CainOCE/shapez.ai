@@ -62,19 +62,20 @@ class ShapezAI(Flask):
             """
             pre_state = self.architect.get_state_machine()
 
-
             # Log Query
             if pre_state == "ONLINE":
                 current_time = datetime.now().strftime("%H:%M:%S")
                 print(f"[{current_time}] -> Training Request:")
 
-            # Train the Architect Model
-            action = self.architect.train(self.game)
-            state = self.architect.get_state_machine()
-            status = self.architect._get_training_status()
+            # Update GameState
+            self.game.import_game_state(request.json)
 
-            # Prepare a response
-            response = { 'state': state, 'status': status, 'action': action}
+            # Train the Architect Model
+            response = {
+                'action': self.architect.train(self.game),
+                'state': self.architect.get_state_machine(),
+                'status': self.architect._get_training_status(),
+            }
             return jsonify(response)
 
 

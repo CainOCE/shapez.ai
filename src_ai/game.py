@@ -85,39 +85,13 @@ class GameState():
 
         # ECS Syle Lists
         self.entities = {}
-        self.chunks = []
         self.resources = {}
-        self.empties = []
-        self.size = 32
-        # self.get_region_radial(x=0, y=0, radius=16) gets what you want.
-
-
-    def _CodeChat(self):
-        """ For Discussion Purposes. """
-
-        # to be implemented -- reset game with new seed
-        def reset(self):  return None # This one gets done the game itself.
-        def evaluate_state(self): return 1 # See Model.validate()
-
-        # Ideally get actions from the tokens
-        def get_building_actions(self, building): # See Below
-            all_actions = self.get_actions()  # .split() if necessary
-            basic_actions = self.get_basic_actions()
-            miner = TOKENS["miner"].split()  # The only resource extractor
-            non_miner = ''.join([TOKENS[t] for t in TOKENS if t != "miner"])
-            return None
-
-        def get_possible_actions(self): return None  # -> get_action_space()
-        def step(self, index, action):  return None  # ->
-
-        tile, x, y = ('x', 0, 0)
-        model_action = {"token": tile, "x": x, "Y": y}
-
-        return
+        self.chunks = []
+        self.storage = {}
 
     def __str__(self):
         """ Representation when the game class is used as a string. """
-        goal_item, goal_amount = (self.goal["item"], self.goal["amount"])
+        goal_item, goal_amount = self.get_goal()
         goal_desc = f"\'{goal_item}\' ({goal_amount})"
         out = f"GAME[seed={self.seed}]: LVL {self.level} -> {goal_desc}\n"
         out += f"  - {len(self.entities)} Current Entities\n"
@@ -129,35 +103,47 @@ class GameState():
         """ Returns the game seed in play. """
         return self.seed
 
+    def get_goal(self):
+        """ Returns a tuple containing the goal hash and amount required. """
+        return (self.goal["item"], self.goal["amount"])
+
+    def get_stored_amount(self, key):
+        """ Returns the number of stored items of key in the game. """
+        if key in self.storage.keys():
+            return self.storage[key]
+        return 0
+
     def get_actions(self):
         """ Returns a list of all actions in the current GameState. """
         return ''.join(TOKENS.values())
 
     def get_basic_actions(self):
         """ Returns a basic list of actions. """
-        return ''.join([TOKENS[key] for key in [
-            "belt", "beltCnrL", "beltCnrR", "miner"
-        ]])
+        return ["belt", "miner"]
 
-    def get_action_space(self, region):
-        """ Returns the action space combination. """
-        action_space = {}
+    def get_action_space(self, region=None):
+        """ Returns the action space list. \n
+        Note that this list must be one-hot.
 
-        # Check each possible position in region1.  Get all position
+            Returns:
+                list: ["x|y|rot|type", ...]
+        """
+        region = region if region is not None else self.get_region_in_play()
+        rotations = [0, 90, 180, 270]
+
+        # Check each possible position in region
+        action_space = []
         for y, row in enumerate(region):
             for x, token in enumerate(row):
                 if token == EMPTY_TOKEN:
                     # If token at x|y is empty, add all token actions to it.
-                    for key in TOKENS:
-                        action_space[f"{x}|{y}"] = self.get_actions()
-                    # TODO Verify if structure can be placed at tile.
+                    for rotation in rotations:
+                        for action in self.get_basic_actions():
+                            action_space.append(f"{x}|{y}|{rotation}|{action}")
+
+                    # TODO Check if structure can fit at location.
 
         return action_space
-
-    def get_token_type(self, token):
-        """ Returns a type from a given token. """
-        token_type = None
-        return None
 
     def import_game_state(self, game_state):
         """ Imports the ECS Entities from the frontend GameState
@@ -185,17 +171,20 @@ class GameState():
                 'amount': game_state["goal"]['required']
             }
 
-        # 3.  Import Game entities
+        # 3.  Import Current Storage Levels
+        self.storage = game_state["storage"]
+
+        # 4.  Import Game entities
         for uid, e in game_state['entities'].items():
             # GUARD:  Entity already exists on the backend
             if uid in self.entities:
                 continue
 
             # Add some positional information to the entity
-            e["local_x"] = e["x"] % 16
-            e["local_y"] = e["y"] % 16
-            e["chunk_x"] = e["x"] // 16
-            e["chunk_y"] = e["y"] // 16
+            e["local_x"] = int(e["x"]) % 16
+            e["local_y"] = int(e["y"]) % 16
+            e["chunk_x"] = int(e["x"]) // 16
+            e["chunk_y"] = int(e["y"]) // 16
 
             # Single Token Entities
             token = UNKNOWN_TOKEN
@@ -227,12 +216,12 @@ class GameState():
             # Commit Entity
             self.entities[uid] = e
 
-        # 3b. Remove all 'dead' entities.
+        # 4b. Remove all 'dead' entities.
         for uid in list(self.entities.keys()):
             if uid not in game_state['entities'].keys():
                 del self.entities[uid]
 
-        # 4.  Import all resources
+        # 5.  Import all resources
         for uid, chunk in game_state['map'].items():
             X, Y = map(int, uid.split('|'))
             for x, row in enumerate(chunk["resources"]):
@@ -298,6 +287,10 @@ class GameState():
     def get_region_radial(self, x=0, y=0, radius=16):
         """ Returns an square region of the game board with given radius. """
         return self.get_region(x-radius, y-radius, 2*radius, 2*radius)
+
+    def get_region_in_play(self):
+        """ Returns an square region of the game board with given radius. """
+        return self.get_region_radial(x=0, y=0, radius=4)
 
     def display_region(self, x=0, y=0, width=16, height=16, buffer=5):
         """ Creates a neatly displayed region graphic. """

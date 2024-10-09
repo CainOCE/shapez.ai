@@ -18,12 +18,18 @@ const METADATA = {
     },
 };
 
+BUILDING_LINK_NAME = {
+    "belt": "MetaBeltBuilding",
+    "miner": "MetaMinerBuilding",
+}
+
 
 class Mod extends shapez.Mod {
 
     /* Step through Sim Logic */
     step() {
         let root = window.globalRoot;
+        let was_paused = this.settings.paused;
 
         // Guard against undefined root
         if (root && root.time) {
@@ -36,11 +42,8 @@ class Mod extends shapez.Mod {
             );
             root.productionAnalytics.update();
             root.achievementProxy.update();
-            this.settings.paused = true;
-        } else {
-            console.error("Global root or time is undefined.");
-            // this.step()
-        }
+            this.settings.paused = was_paused;
+        } else { console.error("Global root or time is undefined."); }
 
         return shapez.STOP_PROPAGATION;
     };
@@ -62,8 +65,8 @@ class Mod extends shapez.Mod {
         function test() {
             let root = window.globalRoot;
             let gs = root.gameState
-            // console.log(shapez)
-            // console.log(root)
+            console.log(shapez)
+            console.log(root)
             // Place some various resources as a test.
             let x = 4
             place_resources([
@@ -86,48 +89,52 @@ class Mod extends shapez.Mod {
 
         async function train() {
             // Start a training session
+            let root = window.globalRoot;
             var gameState = getGameState()
             update_indicator("yellow");
 
-            // Request a training session on the backend
-            var request = await fetch("http://127.0.0.1:5000/train", {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify(gameState),
-            })
-                .then((response) => response.json())
-                .then((response) => {
-                    // Response received
-                    update_indicator("lightgreen");
-                    let state = response["state"]
-                    let status = response["status"]
-                    // let action = response["action"] ?? ""
-                    // console.log(`${state} ${status}`)
-
-                    // Handle the backend state machine
-                    if (state == "ONLINE") { return; }
-                    else if (state == "EPISODE") { reset(); train(); }
-                    else if (state == "PRE_FRAME") { train(); }
-                    else if (state == "POST_FRAME") {
-                        // Apply action to game, step X times, return result
-                        for (let i = 0; i < 300; i++) { mod.step(); }
-                        train();
-                    }
-                    else if (state == "COMPLETE") { return; }
-                    else { train(); }
+            // Guard against undefined root
+            if (root && root.time) {
+                // Request a training session on the backend
+                var request = await fetch("http://127.0.0.1:5000/train", {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify(gameState),
                 })
-                .catch((error) => {
-                    console.error("Request failed:", error);
-                    update_indicator("red");
-                });
+                    .then((response) => response.json())
+                    .then((response) => {
+                        // Response received
+                        update_indicator("lightgreen");
+                        let state = response["state"]
+                        let status = response["status"]
+                        let action = response["action"]
+
+                        // Handle the backend state machine
+                        if (state == "ONLINE") { return; }
+                        else if (state == "EPISODE") { reset(); train(); }
+                        else if (state == "PRE_FRAME") { train(); }
+                        else if (state == "POST_FRAME") {
+                            // Apply action to game, step X, return result
+                            for (let i = 0; i < 300; i++) {
+                                if (action) { place_entities([action]); };
+                                mod.step();
+                            }
+                            train();
+                        }
+                        else if (state == "COMPLETE") { return; }
+                        else { train(); }
+                    })
+                    .catch((error) => {
+                        console.error("Request failed:", error);
+                        update_indicator("red");
+                    });
+            }
         }
 
         /* Destroys game and returns to menu state. */
         function reset() {
-            window.globalRoot.gameState.core.initNewGame()
-            // window.globalRoot.gameState.stateManager.currentState.goBackToMenu()
+            window.globalRoot.gameState.stateManager.currentState.goBackToMenu()
         }
-
 
         /* Places a ghost entity at the desired location */
         function addGhost(entities = []) { }
@@ -147,39 +154,15 @@ class Mod extends shapez.Mod {
              */
         }
 
-        /**
-         * Simplifies the inbuilt tryPlaceBuilding Method
-         *
-         * @param {MetaBuilding} building class of MetaBuilding to place
-         * @param {number} X offset
-         * @param {number} y offset
-         * @param {number} rotation a number in [0, 90, 180, 270]
-         * @returns {Entity}
-         */
-        function tryPlaceSimpleBuilding(building, x, y, rotation=0) {
-            const root = window.globalRoot;
-            return root.logic.tryPlaceBuilding({
-                origin: new shapez.Vector(x, y),
-                building: shapez.gMetaBuildingRegistry.findByClass(
-                    building
-                ),
-                originalRotation: 0,
-                rotation: rotation,
-                rotationVariant: 0,
-                variant: "default",
-            });
-        }
-
         /* Places buildings given by the backend as a list solution. */
         function place_entities(entities) {
             const root = window.globalRoot;
             for (let e of entities){
-                const building = shapez.gMetaBuildingRegistry.findByClass(
-                    shapez[`Meta${e.type}Building`],
-                )
                 root.logic.tryPlaceBuilding({
                     origin: new shapez.Vector(e.x, e.y),
-                    building: building,
+                    building: shapez.gMetaBuildingRegistry.findByClass(
+                        shapez[`${BUILDING_LINK_NAME[e.type]}`]
+                    ),
                     originalRotation: e.rotation,
                     rotation: e.rotation,
                     rotationVariant: 0,
@@ -273,6 +256,9 @@ class Mod extends shapez.Mod {
                 required: G.required,
             });
 
+            // 3.  Extract Stored Shapez
+            let storage = gameState["core"]["root"]["hubGoals"]["storedShapes"]
+
             // 3.  Extract Map (By Chunks for optimal resource scanning)
             const M = gameState["core"]["root"]["map"]["chunksById"];
             let chunks = Object.fromEntries(
@@ -328,35 +314,40 @@ class Mod extends shapez.Mod {
                 map: chunks,
                 level: level,
                 goal: goal,
+                storage: storage,
                 entities: entities
             };
         }
 
         /* Sends a communication pulse to the Python Backend */
         async function ping() {
-            var request = await fetch("http://127.0.0.1:5000/ping", {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: "ping",
-            })
-                .then((response) => response.json())
-                .then((response) => {
-                    if (response == "ONLINE") {
-                        // Change indicator to show server comms are live
-                        if (indicator.style.background == "lightgreen") {
-                            update_indicator("green");
-                        } else {
-                            update_indicator("lightgreen");
-                        }
-                    }
+            let root = window.globalRoot;
+            // Guard against undefined root
+            if (root && root.time) {
+                var request = await fetch("http://127.0.0.1:5000/ping", {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: "ping",
                 })
-                .catch((error) => {
-                    console.log(error)
-                    update_indicator("red");
-            });
-            // NOTE:  It's super annoying that this generates an error
-            //        constantly when it can't connect.  -net in the chrome
-            //        devtools filter will hide these messages.
+                    .then((response) => response.json())
+                    .then((response) => {
+                        if (response == "ONLINE") {
+                            // Change indicator to show server comms are live
+                            if (indicator.style.background == "lightgreen") {
+                                update_indicator("green");
+                            } else {
+                                update_indicator("lightgreen");
+                            }
+                        }
+                    })
+                    .catch((error) => {
+                        console.log(error)
+                        update_indicator("red");
+                });
+                // NOTE:  It's super annoying that this generates an error
+                //        constantly when it can't connect.  -net in the chrome
+                //        devtools filter will hide these messages.
+            }
         }
         const intervalId = setInterval(async () => { await ping(); }, 1000);
 

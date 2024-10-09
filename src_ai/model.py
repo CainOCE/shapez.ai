@@ -148,23 +148,23 @@ class Architect(Model):
     def __init__(self, seed=42):
         super().__init__()
         self.name = "Architect"
-        self.version = "0.4.0"
+        self.version = "0.5.0"
         self.state_machine = "ONLINE"
 
         # The current state values
+        self.pre_state = []
+        self.post_state = []
         self.region = None
-        self.action_space = None  # Dict({ "f'{x}|{y}'": ["ABCD"], etc })
+        self.action_space = None
         self.num_actions = 0
         self.queued_action = None
 
         # Model Training Factors
         self.seed = seed
-        self.model = {}
-        self.target = {}
         self.optimiser = keras.optimizers.Adam(learning_rate=0.0001)
         self.episodes = 0
-        self.max_episodes = 10   # TODO was 10
-        self.max_frames = 20  # TODO was 10,000
+        self.max_episodes = 10
+        self.max_frames = 20
         self.running_reward = 0
         self.episode_reward = 0
         self.frames = 0
@@ -181,7 +181,6 @@ class Architect(Model):
         self.epsilon_random_frames = 50000  # Random Action Frames
         self.epsilon_greedy_frames = 1000000.0  # Exploration Frames
         self.max_memory_length = 100  # Maximum replay length
-        # TODO:  Deepmind Suggests 100,000 memory max, significant memory usage
         self.update_after_actions = 4  # Train Model every X Actions
         self.update_target_network = 10000  # Network Update Target
         self.loss_function = keras.losses.Huber()  # huber loss for stability
@@ -194,12 +193,19 @@ class Architect(Model):
         self.rewards_history = []
         self.episode_reward_history = []
 
+        # Build the models
+        self.model = self.create_q_model()
+        self.target = self.create_q_model()
+
     def get_state_machine(self):
         """ Returns the current state in the state machine. """
         return self.state_machine
 
-    def create_q_model(self, actions):
+    def create_q_model(self):
         """ Creates a Deep Q Style Model as seen in the deepmind paper. """
+        actions = [1, 2, 3, 4]
+        num_actions = len(actions)
+
         # See https://keras.io/examples/rl/deep_q_network_breakout/
         return keras.Sequential(
             [
@@ -214,14 +220,12 @@ class Architect(Model):
                 keras.layers.Conv2D(64, 3, strides=1, activation="relu"),
                 keras.layers.Flatten(),
                 keras.layers.Dense(512, activation="relu"),
-                keras.layers.Dense(actions, activation="linear"),
+                keras.layers.Dense(num_actions, activation="linear"),
             ]
         )
 
     def _get_training_status(self):
         """ Utility:  Gets the current training status. """
-        if self.get_state_machine == "ONLINE":
-            return "Not Training."
         e, e_max = (self.episodes, self.max_episodes)
         f, f_max = (self.frames, self.max_frames)
         a = str(self.queued_action).ljust(20)
@@ -242,19 +246,9 @@ class Architect(Model):
 
         # 1.  Train
         if self.get_state_machine() == "ONLINE":
-            print(" -> Training Request")
-            self.region = game.get_region(-18, -18, 36, 36)
-            self.action_space = game.get_action_space(self.region)
-            self.num_actions = len(self.action_space)
-
-            print(" -> Setting Key Values")
-            self.seed = game.get_seed()
+            action_space = len(game.get_action_space())
+            print(f" -> Training Request:  {action_space} action space")
             self.episode_reward = 0
-
-            print(" -> Creating Deep Q Model & Target Model")
-            # TODO Define Model outside (and before) of training loop
-            self.model = self.create_q_model(self.num_actions)
-            self.target = self.create_q_model(self.num_actions)
             self.state_machine = "EPISODE"
             return None
 
@@ -299,7 +293,7 @@ class Architect(Model):
             self.state_machine = "PRE_FRAME"
             return None
 
-        # 3.  Pre-Frame
+        # 3.  Pre-Frame:  Send an action to the frontend
         if self.get_state_machine() == "PRE_FRAME":
             # Reset if frames are finished
             if self.frames >= self.max_frames:
@@ -309,25 +303,34 @@ class Architect(Model):
             # Execute a pre_frame.  eg get_action
             self.frames += 1
 
+            # Generate gamestate for the frame
+            self.pre_state = game
+            self.action_space = game.get_action_space()
+            self.num_actions = len(self.action_space)
+
             # Select Action to return
             action = self._select_action(self.action_space)
             self.queued_action = action
+            # action -> {"type", "x", "y", "rotation"}
             # e.g. {"type": "Belt", "x": 2, "y": y, "rotation": 270}
-            # action -> {"x", "y", "type", "rotation"}
 
+            # Print Status Helper
             print(self._get_training_status(), end="\r")
             self.state_machine = "POST_FRAME"
             return self.get_queued_action()
 
         # X.  -> Client runs between these
 
-        # 4.  Post-Frame
+        # 4.  Post-Frame:  Process returned frontend
         if self.get_state_machine() == "POST_FRAME":
-            # Do something with the result of the frame
+            self.post_state = game
 
-            # 4.  Validate the action by assigning a score.
-            # reward = self.validate(state)
-            # self.running_reward += reward
+            # Validate the action by assigning a score.
+            reward = self.validate()
+            self.running_reward += reward
+
+            # Log the events
+            # self.log(self.pre_state, self.post_state, action, reward)
 
             # Move to next frame.
             self.state_machine = "PRE_FRAME"
@@ -343,28 +346,6 @@ class Architect(Model):
         - i think we do need a state because thats how tensorflow works to use
         prebuilt methods
         """
-        # 1.  Get state and action space from current GameState
-        state = self.region
-
-        # 2.  Choose available action for frame
-        action = self._select_action(self.action_space)
-        self.queued_action = action
-
-        # 3.  Apply the action
-        # state_next = game.step(self.queued_action)
-        return
-
-        # state_next = np.array(state_next)
-        # state_next, reward, goal = (state, 0, 0)
-
-        # 4.  Validate the action by assigning a score.
-        reward = self.validate(state)
-        self.running_reward += reward
-
-        # 5.  Log the events
-        self.log(state, state_next, action, reward, goal)
-
-        # state = state_next
         # Update every fourth frame and once batch size is over 32
         if (self.frames % self.update_after_actions == 0 and
             len(self.goal_history) > self.batch_size):
@@ -435,18 +416,7 @@ class Architect(Model):
     def _select_action(self, action_space):
         """ Select an action using an epsilon-greedy strategy. """
         action = None
-
-        # TODO Naive Random Implementation, fix for Epsilon Greedy
-
-
         eps = np.random.random()
-        
-        position = random.choice(list(action_space.keys()))
-        action = random.choice(action_space[position])
-        direction = random.choice([0, 90, 180, 270])
-        # Get direction from action
-
-        return {position: action}
 
         # Take Random or attempt prediction.
         if (self.frames < self.epsilon_random_frames or
@@ -455,17 +425,26 @@ class Architect(Model):
             action = random.choice(action_space)
         else:
             # Predict action Q-Value from Environment
-            state_tensor = keras.ops.convert_to_tensor(state)
+            region = self.pre_state.get_region_in_play()
+            state_tensor = keras.ops.convert_to_tensor(region)
             state_tensor = keras.ops.expand_dims(state_tensor, 0)
-            action_probs = self.model(state_tensor, training=False)
-                # TODO Adjust actions by weights
+
             # Take best action
+                # TODO Adjust actions by weights
+            action_probs = self.model(state_tensor, training=False)
             action = keras.ops.argmax(action_probs[0]).numpy()
 
         # Decay probability of taking random action
         self.epsilon -= self.epsilon_interval / self.epsilon_greedy_frames
         self.epsilon = max(self.epsilon, self.epsilon_min)
 
+        # Split action back to variables
+        x, y, rot, action = action.split("|")
+        action = {
+            "type": action,
+            "x": int(x)-4, "y": int(y)-4,
+            "rotation": int(rot)
+        }
         return action
 
     def get_queued_action(self):
@@ -483,49 +462,41 @@ class Architect(Model):
         # - belts connecting to hub (+0.0001)
         # - plus more... idk, could add heps here dpends how complex we want this method to be
 
+    def validate(self):
+        """ Heuristic scoring of the current model action.
+            \"Reward Function\"
+        """
+        score = 0
 
-    """
-    gonna rewrite using ECS thing if possible???
-    should be easier then state i think
-    """
-    def validate(self, level, entities, resources, products):
-        # level     - current level of the game (used to get goal products)
-        # entities  - list of buildings and respective locations
-        # resources - list of resources and respective locations
-        # products  - list of products produced since last check 
-        reward = 0
-        
-        current_goal = GOALS[level] # need to make goals
-        # check if produced items are in current goal
-        for g in products:
-            if g in current_goal[0]: # only works for levels w 1 goal product
-                reward += 0.1
+        # Generate the regions of interest
+        pre_region = self.pre_state.get_region_in_play()
+        post_region = self.post_state.get_region_in_play()
 
-        
-        # check for miners on resources -- subgoal 
-        # also finite amount, i suspect this will make model put miner on every available resource
-        for e in entities.keys():
-            if e in resources.keys(): # assume only miners can be placed on resources
-                reward += 0.01
+        # Pull out the relevant items
+        item, required = self.pre_state.get_goal()
+        stored_pre = self.pre_state.get_stored_amount(item)
+        stored_post = self.post_state.get_stored_amount(item)
+        gained  = stored_post - stored_pre
 
+        # Did we gain the required item?:
+        score += gained * 0.1
 
-        # check for connected belts 
-        # -- problem with making broader rewards is that model could find loophole and make a super long belt chain for example
-        # problem with not making these rewards, is that model will not know what is "good" until goal product is made, very slow
-        # could be some way to have these "sub-goals" only give reward up to some number of frames
-        # if frame < sub_goal_frame:
-        #     allow subgoals
+        # Did we produce a future goal shape?
 
-        # alternatively, could use level or something
-        # if level > 2 ---> dont allow subgoal rewards
-        for pos in entities.keys():
-            if entities[pos] == "belt":
-                pass
-        
-        # check belt connected to HUB 
+        # Checking elements per tile in the region
+        for y, row in enumerate(pre_region):
+            for x, _ in enumerate(row):
 
-        return reward
-       
+                # Are Miners on a resource?
+                if post_region[y][x] in "▲▶▼◀" and pre_region[y][x] in "rgbX":
+                    score += 1.0
+
+                # Do belts connect logically?
+
+                # Do belts lead to the hub?
+
+        return score
+
 
     def log(self, state, state_next, action, reward, goal):
         """ Updates the logged event history. """
