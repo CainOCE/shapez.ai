@@ -249,6 +249,7 @@ class Architect(Model):
             self.episode_reward = 0
 
             print(" -> Creating Deep Q Model & Target Model")
+            # TODO Define Model outside (and before) of training loop
             self.model = self.create_q_model(self.num_actions)
             self.target = self.create_q_model(self.num_actions)
             self.state_machine = "EPISODE"
@@ -325,6 +326,7 @@ class Architect(Model):
             # reward = self.validate(state)
             # self.running_reward += reward
 
+            # Move to next frame.
             self.state_machine = "PRE_FRAME"
             return None
 
@@ -413,6 +415,7 @@ class Architect(Model):
                 zip(grads, self.model.trainable_variables)
             )
 
+        # -> Printing
         if self.frames % self.update_target_network == 0:
         # update the the target network with new weights
             self.target.set_weights(self.model.get_weights())
