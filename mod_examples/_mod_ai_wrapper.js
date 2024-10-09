@@ -24,16 +24,24 @@ class Mod extends shapez.Mod {
     /* Step through Sim Logic */
     step() {
         let root = window.globalRoot;
-        // Unpause -> Step -> Pause
-        this.settings.paused = false;
-        root.time.updateRealtimeNow();
-        root.time.performTicks(
-            root.dynamicTickrate.deltaMs,
-            root.gameState.core.boundInternalTick
-        );
-        root.productionAnalytics.update();
-        root.achievementProxy.update();
-        this.settings.paused = true;
+
+        // Guard against undefined root
+        if (root && root.time) {
+            // Unpause -> Step -> Pause
+            this.settings.paused = false;
+            root.time.updateRealtimeNow();
+            root.time.performTicks(
+                root.dynamicTickrate.deltaMs,
+                root.gameState.core.boundInternalTick
+            );
+            root.productionAnalytics.update();
+            root.achievementProxy.update();
+            this.settings.paused = true;
+        } else {
+            console.error("Global root or time is undefined.");
+            // this.step()
+        }
+
         return shapez.STOP_PROPAGATION;
     };
 
@@ -94,7 +102,7 @@ class Mod extends shapez.Mod {
                     let state = response["state"]
                     let status = response["status"]
                     // let action = response["action"] ?? ""
-                    console.log(`${state} ${status}`)
+                    // console.log(`${state} ${status}`)
 
                     // Handle the backend state machine
                     if (state == "ONLINE") { return; }
@@ -116,7 +124,8 @@ class Mod extends shapez.Mod {
 
         /* Destroys game and returns to menu state. */
         function reset() {
-            window.globalRoot.gameState.stateManager.currentState.goBackToMenu()
+            window.globalRoot.gameState.core.initNewGame()
+            // window.globalRoot.gameState.stateManager.currentState.goBackToMenu()
         }
 
 
@@ -370,30 +379,6 @@ class Mod extends shapez.Mod {
                     console.log("Return Data:");
                     console.dir(data)
                     place_entities(data)
-                    update_indicator("lightgreen");
-                })
-                .catch((error) => {
-                    console.error("Request failed:", error);
-                    update_indicator("red");
-                });
-        }
-
-        /**
-         * Sends a gameState obj to the python backend.
-         *
-         * @param {type} gameState - Shapez.__
-         * @returns {type} None
-         */
-        async function old_train() {
-            var gameState = getGameState()
-            update_indicator("yellow");
-            var request = await fetch("http://127.0.0.1:5000/train", {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify(gameState),
-            })
-                .then((response) => response.json())
-                .then((data) => {
                     update_indicator("lightgreen");
                 })
                 .catch((error) => {
