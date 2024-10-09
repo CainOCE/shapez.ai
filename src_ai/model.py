@@ -29,6 +29,9 @@ logging.basicConfig(
     handlers=[logging.StreamHandler()]
 )
 
+
+GOALS = [['CuCuCuCu', 30]] # currently only level 1
+
 MODEL_STORAGE_DIRECTORY = "./src_ai/models"
 
 
@@ -434,6 +437,10 @@ class Architect(Model):
         action = None
 
         # TODO Naive Random Implementation, fix for Epsilon Greedy
+
+
+        eps = np.random.random()
+        
         position = random.choice(list(action_space.keys()))
         action = random.choice(action_space[position])
         direction = random.choice([0, 90, 180, 270])
@@ -468,15 +475,57 @@ class Architect(Model):
         return action
 
     # reward function -- very important for performance
-    def validate(self, state):
-        return 1
-        # things to check for: (using random numbers)
+     # things to check for: (using random numbers)
         # -- im scared to make rewards for non immediate goals so model does not find some hack
         # - produce goal shape (+1)
         # - produce future goal shape (+0.00001)
         # - belts connecting (+0.0001)
         # - belts connecting to hub (+0.0001)
         # - plus more... idk, could add heps here dpends how complex we want this method to be
+
+
+    """
+    gonna rewrite using ECS thing if possible???
+    should be easier then state i think
+    """
+    def validate(self, level, entities, resources, products):
+        # level     - current level of the game (used to get goal products)
+        # entities  - list of buildings and respective locations
+        # resources - list of resources and respective locations
+        # products  - list of products produced since last check 
+        reward = 0
+        
+        current_goal = GOALS[level] # need to make goals
+        # check if produced items are in current goal
+        for g in products:
+            if g in current_goal[0]: # only works for levels w 1 goal product
+                reward += 0.1
+
+        
+        # check for miners on resources -- subgoal 
+        # also finite amount, i suspect this will make model put miner on every available resource
+        for e in entities.keys():
+            if e in resources.keys(): # assume only miners can be placed on resources
+                reward += 0.01
+
+
+        # check for connected belts 
+        # -- problem with making broader rewards is that model could find loophole and make a super long belt chain for example
+        # problem with not making these rewards, is that model will not know what is "good" until goal product is made, very slow
+        # could be some way to have these "sub-goals" only give reward up to some number of frames
+        # if frame < sub_goal_frame:
+        #     allow subgoals
+
+        # alternatively, could use level or something
+        # if level > 2 ---> dont allow subgoal rewards
+        for pos in entities.keys():
+            if entities[pos] == "belt":
+                pass
+        
+        # check belt connected to HUB 
+
+        return reward
+       
 
     def log(self, state, state_next, action, reward, goal):
         """ Updates the logged event history. """
