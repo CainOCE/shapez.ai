@@ -63,9 +63,6 @@ class ShapezAI(Flask):
             """ Handles incoming training requests sent by the game instance.
             """
             pre_state = self.architect.get_state_machine()
-            t1 = time.time()
-            print(f"Processing time: {t1-self.t0} s")
-            self.t0 = time.time()
 
             # Log Query
             if pre_state == "ONLINE":

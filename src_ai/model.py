@@ -13,6 +13,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Supress INFO Logs
 
 # pylint: disable=C0413
 from datetime import datetime
+import time
 import json
 import random
 import logging
@@ -150,6 +151,7 @@ class Architect(Model):
         self.name = "Architect"
         self.version = "0.5.0"
         self.state_machine = "ONLINE"
+        self.episode_time = time.time()
 
         # The current state values
         self.pre_state = []
@@ -163,8 +165,8 @@ class Architect(Model):
         self.seed = seed
         self.optimiser = keras.optimizers.Adam(learning_rate=0.0001)
         self.episodes = 0
-        self.max_episodes = 10
-        self.max_frames = 1024
+        self.max_episodes = 30
+        self.max_frames = 10000
         self.running_reward = 0
         self.episode_reward = 0
         self.frames = 0
@@ -178,11 +180,11 @@ class Architect(Model):
         self.batch_size = 32
 
         # Training Values
-        self.epsilon_random_frames = 50000  # Random Action Frames
+        self.epsilon_random_frames = 2500  # Random Action Frames
         self.epsilon_greedy_frames = 1000000.0  # Exploration Frames
         self.max_memory_length = 100  # Maximum replay length
-        self.update_after_actions = 4  # Train Model every X Actions
-        self.update_target_network = 10000  # Network Update Target
+        self.update_after_actions = 5  # Train Model every X Actions
+        self.update_target_network = 5000  # Network Update Target
         self.loss_function = keras.losses.Huber()  # huber loss for stability
 
         # Experience replay buffers
@@ -203,9 +205,9 @@ class Architect(Model):
 
     def create_q_model(self):
         """ Creates a Deep Q Style Model as seen in the deepmind paper. """
-        # TODO -- fix this below
-        actions = [1, 2, 3, 4]
-        num_actions = len(actions)
+        # TODO -- fix this below, grab it dynamically
+        num_actions = 8064
+        self.num_actions = num_actions
 
         # See https://keras.io/examples/rl/deep_q_network_breakout/
         return keras.Sequential(
@@ -230,7 +232,8 @@ class Architect(Model):
         e, e_max = (self.episodes, self.max_episodes)
         f, f_max = (self.frames, self.max_frames)
         a = str(self.queued_action).ljust(20)
-        return f" -> Training:  Ep {e}|{e_max}, Fr {f}|{f_max}, Ac {a}"
+        t = round(time.time() - self.episode_time, 3)
+        return f" -> Training ({t})s:  Ep {e}|{e_max}, Fr {f}|{f_max}, Ac {a}"
 
     def train(self, game):
         """ Begins the model training state machine.
@@ -247,8 +250,9 @@ class Architect(Model):
 
         # 1.  Train
         if self.get_state_machine() == "ONLINE":
-            action_space = len(game.get_action_space())
-            print(f" -> Training Request:  {action_space} action space")
+            self.action_space = game.get_action_space()
+            self.num_actions = len(self.action_space)
+            print(f" -> Training Request:  {self.num_actions} action space")
             self.episode_reward = 0
             self.state_machine = "EPISODE"
             return None
@@ -256,6 +260,7 @@ class Architect(Model):
         # 2.  Episode
         if self.get_state_machine() == "EPISODE":
             self.episodes += 1
+            self.episode_time = time.time()
 
             # Add some boolean condition checks
             solved = self.running_reward >= 40
@@ -267,6 +272,7 @@ class Architect(Model):
                 print(self._get_training_status())
                 result = "Capped" if capped else "Solved"
                 print(f" -> Training loop result in a '{result}' state")
+                print(f" -> Episode trained in {self.episode_time} s")
 
                 # Save our model
                 print(" -> Saving Model.")
@@ -287,7 +293,7 @@ class Architect(Model):
             self.frames = 0
             episode_reward = 1
 
-            # Update running reward to check condition for solving      
+            # Update running reward to check condition for solving
             self.episode_reward_history.append(episode_reward)
             self.episode_reward_history = self.episode_reward_history[-100:]
             self.running_reward = np.mean(self.episode_reward_history)
@@ -306,11 +312,9 @@ class Architect(Model):
 
             # Generate gamestate for the frame
             self.pre_state = game
-            self.action_space = game.get_action_space()
-            self.num_actions = len(self.action_space)
 
             # Select Action to return
-            action = self._select_action(self.action_space)
+            action = self._select_action()
             self.queued_action = action
             # action -> {"type", "x", "y", "rotation"}
             # e.g. {"type": "Belt", "x": 2, "y": y, "rotation": 270}
@@ -333,11 +337,72 @@ class Architect(Model):
             # Log the events
             # self.log(self.pre_state, self.post_state, action, reward)
 
+            # Periodically update the model between several actions
+            if (not self.frames % self.update_after_actions and
+                len(self.goal_history) > self.batch_size):
+                self._model_update()
+
+            # update the the target network with new weights
+            if not self.frames % self.update_target_network:
+                self.target.set_weights(self.model.get_weights())
+
             # Move to next frame.
             self.state_machine = "PRE_FRAME"
             return None
 
         return None
+
+    def _model_update(self):
+        """ Handles the periodic updates to the model. """
+        # Get indices of samples for replay buffers
+        indices = np.random.choice(
+            range(len(self.goal_history)), size=self.batch_size
+        )
+
+        # Using list comprehension to sample from replay buffer
+        state_sample = np.array([self.state_history[i] for i in indices])
+        state_next_sample = np.array(
+            [self.state_next_history[i] for i in indices]
+        )
+        rewards_sample = [self.rewards_history[i] for i in indices]
+        action_sample = [self.action_history[i] for i in indices]
+        goal_sample = keras.ops.convert_to_tensor(
+            [float(self.goal_history[i]) for i in indices]
+        )
+
+        # Build the updated Q-values for the sampled future states
+        # Use the target model for stability
+        future_rewards = self.target.predict(state_next_sample)
+        # Q value = reward + discount factor * expected future reward
+        updated_q_values = rewards_sample + self.gamma * keras.ops.amax(
+            future_rewards, axis=1
+        )
+
+        # If final frame set the last value to -1
+        updated_q_values = updated_q_values*(1-goal_sample) - goal_sample
+
+        # Create a mask so we only calculate loss on the updated Q-values
+        masks = keras.ops.one_hot(action_sample, self.num_actions)
+
+        with tf.GradientTape() as tape:
+            # Train the model on the states and updated Q-values
+            q_values = self.model(state_sample)
+
+            # Apply the masks to the Q-values to get the Q-value for
+            # action taken
+            q_action = keras.ops.sum(
+                keras.ops.multiply(q_values, masks), axis=1
+            )
+
+            # Calculate loss between new Q-value and old Q-value
+            loss = self.loss_function(updated_q_values, q_action)
+
+        # Backpropagation
+        grads = tape.gradient(loss, self.model.trainable_variables)
+        self.optimiser.apply_gradients(
+            zip(grads, self.model.trainable_variables)
+        )
+        return
 
     def _step(self, game):
         """ Advances the model one step.
@@ -348,61 +413,8 @@ class Architect(Model):
         prebuilt methods
         """
 
-        # Update every fourth frame and once batch size is over 32
-        if (self.frames % self.update_after_actions == 0 and
-            len(self.goal_history) > self.batch_size):
-
-            # Get indices of samples for replay buffers
-            indices = np.random.choice(
-                range(len(self.goal_history)), size=self.batch_size
-            )
-
-            # Using list comprehension to sample from replay buffer
-            state_sample = np.array([self.state_history[i] for i in indices])
-            state_next_sample = np.array(
-                [self.state_next_history[i] for i in indices]
-            )
-            rewards_sample = [self.rewards_history[i] for i in indices]
-            action_sample = [self.action_history[i] for i in indices]
-            goal_sample = keras.ops.convert_to_tensor(
-                [float(self.goal_history[i]) for i in indices]
-            )
-
-            # Build the updated Q-values for the sampled future states
-            # Use the target model for stability
-            future_rewards = self.target.predict(state_next_sample)
-            # Q value = reward + discount factor * expected future reward
-            updated_q_values = rewards_sample + self.gamma * keras.ops.amax(
-                future_rewards, axis=1
-            )
-
-            # If final frame set the last value to -1
-            updated_q_values = updated_q_values*(1-goal_sample) - goal_sample
-
-            # Create a mask so we only calculate loss on the updated Q-values
-            masks = keras.ops.one_hot(action_sample, self.num_actions)
-
-            with tf.GradientTape() as tape:
-                # Train the model on the states and updated Q-values
-                q_values = self.model(state_sample)
-
-                # Apply the masks to the Q-values to get the Q-value for
-                # action taken
-                q_action = keras.ops.sum(
-                    keras.ops.multiply(q_values, masks), axis=1
-                )
-
-                # Calculate loss between new Q-value and old Q-value
-                loss = self.loss_function(updated_q_values, q_action)
-
-            # Backpropagation
-            grads = tape.gradient(loss, self.model.trainable_variables)
-            self.optimiser.apply_gradients(
-                zip(grads, self.model.trainable_variables)
-            )
-
         # -> Printing
-        if self.frames % self.update_target_network == 0:
+        if not self.frames % self.update_target_network:
         # update the the target network with new weights
             self.target.set_weights(self.model.get_weights())
             # Log details
@@ -415,9 +427,10 @@ class Architect(Model):
 
         return
 
-    def _select_action(self, action_space):
+    def _select_action(self):
         """ Select an action using an epsilon-greedy strategy. """
         action = None
+        action_space = self.action_space
         eps = np.random.random()
 
         # Take Random or attempt prediction.
@@ -433,7 +446,7 @@ class Architect(Model):
 
             # Take best action
                 # TODO Adjust actions by weights
-                # TODO think about how action probs change as action space changes
+                # TODO how do action probs change as action space changes
             action_probs = self.model(state_tensor, training=False)
             action = keras.ops.argmax(action_probs[0]).numpy()
 
@@ -498,6 +511,8 @@ class Architect(Model):
                 
 
                 # Do belts lead to the hub?
+
+                # neg reward for placing building over another building
 
         return score
 

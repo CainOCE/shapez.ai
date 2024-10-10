@@ -9,7 +9,6 @@ Created on Wed Sep 25, 2024 at 13:00:32
 # http://xahlee.info/comp/unicode_arrows.html
 # Note: Shapez.io defines rotation in True North Bearings e.g. URDL or NESW
 
-import numpy as np
 
 TERM_COLOUR = {
     'r': "\033[41m",
@@ -47,10 +46,11 @@ STRUCTS = {
     # Structures
     "hub": [
         "╔HUB",
-        "║XX║",
-        "║XX║",
+        "║HH║",
+        "║HH║",
         "╚══╝"
     ],
+    "hub_token": "H",
     # "balancer": "⮤⮥⮣⮡⮦⮧⮠'⮢",
     "balancer": ["⮤⮥", "⮣⮡", "⮦⮧", "⮠'⮢"],
     "cutter": ["⭻🠴"],
@@ -119,7 +119,7 @@ class GameState():
 
     def get_basic_actions(self):
         """ Returns a basic list of actions. """
-        return ["belt"]
+        return ["belt", "miner"]
 
     def get_action_space(self, region=None):
         """ Returns the action space list. \n
@@ -133,37 +133,23 @@ class GameState():
 
         # Check each possible position in region
         action_space = []
+        i = 0
         for y, row in enumerate(region):
             for x, token in enumerate(row):
                 global_x, global_y = ((x-len(row)//2)+4, (y-len(region)//2)+4)
-
-                # if resource -- add action to place miner
-                if f"{global_x}|{global_y}" in self.resources.keys():
-                    viable_rotations = [] # viable rotations depending on global x and y
-                    if global_x <= 0:
-                        viable_rotations.append(90)
-                    elif global_x >= 0:
-                        viable_rotations.append(270)
-                    if global_y <= 0:
-                        viable_rotations.append(180)
-                    elif global_y >= 0:
-                        viable_rotations.append(0)
-
-                    for rotation in viable_rotations:
-                            action_space.append(
-                                f"{global_x}|{global_y}|{rotation}|miner"
-                            )
-                    # TODO - Ensure Miners face towards HUB
-                else:
-                    # If token at x|y is empty, add all token actions to it.
+                if token not in "".join(STRUCTS["hub"]):
+                    i += 1
                     for rotation in rotations:
                         for action in self.get_basic_actions():
                             action_space.append(
                                 f"{global_x}|{global_y}|{rotation}|{action}"
                             )
-
-                # TODO Check if structure can fit at location. Overlaps??
-
+                    # TODO Check if structure can fit at location. Overlaps??
+        # print(self.display_region(-16, -16))
+        print("".join(STRUCTS["hub"]))
+        print(f"{len(region[0])}x{len(region)} ?== {32*32}")
+        print(f"Action Space Len: {len(action_space)}")
+        print(f"{len(self.resources.keys())}")
         return action_space
 
     def import_game_state(self, game_state):
