@@ -164,7 +164,7 @@ class Architect(Model):
         self.optimiser = keras.optimizers.Adam(learning_rate=0.0001)
         self.episodes = 0
         self.max_episodes = 10
-        self.max_frames = 20
+        self.max_frames = 1000
         self.running_reward = 0
         self.episode_reward = 0
         self.frames = 0
@@ -203,6 +203,7 @@ class Architect(Model):
 
     def create_q_model(self):
         """ Creates a Deep Q Style Model as seen in the deepmind paper. """
+        # TODO -- fix this below
         actions = [1, 2, 3, 4]
         num_actions = len(actions)
 
@@ -346,6 +347,7 @@ class Architect(Model):
         - i think we do need a state because thats how tensorflow works to use
         prebuilt methods
         """
+        
         # Update every fourth frame and once batch size is over 32
         if (self.frames % self.update_after_actions == 0 and
             len(self.goal_history) > self.batch_size):
@@ -378,7 +380,7 @@ class Architect(Model):
             updated_q_values = updated_q_values*(1-goal_sample) - goal_sample
 
             # Create a mask so we only calculate loss on the updated Q-values
-            masks = keras.ops.one_hot(action_sample, num_actions)
+            masks = keras.ops.one_hot(action_sample, self.num_actions)
 
             with tf.GradientTape() as tape:
                 # Train the model on the states and updated Q-values
@@ -431,6 +433,7 @@ class Architect(Model):
 
             # Take best action
                 # TODO Adjust actions by weights
+                # TODO think about how action probs change as action space changes
             action_probs = self.model(state_tensor, training=False)
             action = keras.ops.argmax(action_probs[0]).numpy()
 

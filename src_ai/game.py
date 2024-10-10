@@ -119,7 +119,7 @@ class GameState():
 
     def get_basic_actions(self):
         """ Returns a basic list of actions. """
-        return ["belt", "miner"]
+        return ["belt"]
 
     def get_action_space(self, region=None):
         """ Returns the action space list. \n
@@ -141,7 +141,16 @@ class GameState():
                         for action in self.get_basic_actions():
                             action_space.append(f"{x}|{y}|{rotation}|{action}")
 
-                    # TODO Check if structure can fit at location.
+                    # TODO Check if structure can fit at location. -- could we just overlap????
+
+
+                if f"{x}|{y}" in self.resources.keys():
+                    # if resource -- add action to place miner
+                    # TODO - only allow rotations which send in HUB direction
+                    for rotation in rotations:
+                            action_space.append(f"{x}|{y}|{rotation}|miner")
+
+
 
         return action_space
 
@@ -290,7 +299,8 @@ class GameState():
 
     def get_region_in_play(self):
         """ Returns an square region of the game board with given radius. """
-        return self.get_region_radial(x=0, y=0, radius=4)
+        return self.get_region_radial(x=0, y=0, radius=16)
+        
 
     def display_region(self, x=0, y=0, width=16, height=16, buffer=5):
         """ Creates a neatly displayed region graphic. """
