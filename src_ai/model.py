@@ -170,6 +170,7 @@ class Architect(Model):
         self.running_reward = 0
         self.episode_reward = 0
         self.frames = 0
+        self.reward_goal = 10000 # reward total to stop training, right now set so hopefully stops from episodes
 
         # Chosen Hyperparameters
         self.gamma = 0.99
@@ -263,7 +264,7 @@ class Architect(Model):
             self.episode_time = time.time()
 
             # Add some boolean condition checks
-            solved = self.running_reward >= 40
+            solved = self.running_reward >= self.reward_goal
             capped = self.episodes > self.max_episodes
 
             # Stop the episode
@@ -505,16 +506,30 @@ class Architect(Model):
 
                 # Are Miners on a resource?
                 if post_region[y][x] in "▲▶▼◀" and pre_region[y][x] in "rgbX":
-                    score += 0.01 # very small increase -- finite number of resources so reward not infinite
+                    score += 0.01 
+                
+                # reduce score for miner not on resource
+                if post_region[y][x] in "▲▶▼◀" and pre_region[y][x] not in "rgbX":
+                    score -= 0.01
+
+                # belt not on resource
+                if post_region[y][x] in "↑→↓←↖↗↘↙↗↘↙↖" and pre_region[y][x] not in "rgbX":
+                    score += 0.001 # small increase
 
                 # Do belts connect logically?
                 
 
-                # Do belts lead to the hub?
+                # Do belts start at a resource/lead to the hub?
+
 
                 # neg reward for placing building over another building
+                
 
         return score
+    
+    # search through board and find belt chains
+    def find_belt_chains(self, pre, post):
+        return
 
 
     def log(self, state, state_next, action, reward, goal):
