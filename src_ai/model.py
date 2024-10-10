@@ -13,6 +13,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Supress INFO Logs
 
 # pylint: disable=C0413
 from datetime import datetime
+import time
 import json
 import random
 import logging
@@ -150,6 +151,7 @@ class Architect(Model):
         self.name = "Architect"
         self.version = "0.5.0"
         self.state_machine = "ONLINE"
+        self.episode_time = time.time()
 
         # The current state values
         self.pre_state = []
@@ -261,12 +263,15 @@ class Architect(Model):
             solved = self.running_reward >= 40
             capped = self.episodes > self.max_episodes
 
+            self.episode_time = time.time() - self.episode_time
+
             # Stop the episode
             if (solved or capped):
                 self.episodes -= 1
                 print(self._get_training_status())
                 result = "Capped" if capped else "Solved"
                 print(f" -> Training loop result in a '{result}' state")
+                print(f" -> Episode trained in {self.episode_time} s")
 
                 # Save our model
                 print(" -> Saving Model.")
