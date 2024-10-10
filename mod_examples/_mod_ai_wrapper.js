@@ -61,12 +61,20 @@ class Mod extends shapez.Mod {
             (f) => { return f.call(this) || this.settings.paused; }
         );
 
+        /* Fires when the game has properly initialised */
+        this.signals.stateEntered.add(state => {
+            if (state instanceof shapez.InGameState) {
+                 const checkCameraReady = setInterval(() => {
+                    if (window.globalRoot && window.globalRoot.gameState.camera && window.globalRoot.gameState.camera.setDesiredZoom) {
+                        ROOT.camera.setDesiredZoom(0.1);
+                        clearInterval(checkCameraReady);
+                    }
+                }, 100);
+            }
+        });
+
         /* Executes code under development */
         function test() {
-            let root = window.globalRoot;
-            let gs = root.gameState
-            console.log(shapez)
-            console.log(root)
             // Place some various resources as a test.
             let x = 4
             place_resources([
