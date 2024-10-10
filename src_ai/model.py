@@ -30,6 +30,7 @@ logging.basicConfig(
     handlers=[logging.StreamHandler()]
 )
 
+ # TODO include all types of pipes
 DIRECTION_TO_COORD = {
     '↑' : (-1, 0),
     '→' : (0, 1),
@@ -532,13 +533,11 @@ class Architect(Model):
                     score += 0.001 # small increase
 
                 # Do belts connect logically?
-                score += self.find_belt_chains(post_region)
+                score += self.find_belt_chains(post_region) # only count belts that start on resource
 
-                # Do belts start at a resource/lead to the hub?
+                # Do belts lead to the hub? -- accounted for in find_belt_chains
 
-
-                # neg reward for placing building over another building
-                
+                # neg reward for placing building over another building -- dont think its neccessary 
 
         return score
     
@@ -568,7 +567,7 @@ class Architect(Model):
             hub = belt.pop(-1) # remove last element, if 'H' --> hub, add multiplier, else '0'
             belt_length = len(belt)
             # random gaussian i made to give score, will refine with testing
-            score += 0.2 * np.exp(1 / 8 * (belt_length - ideal_belt_len) ** 2) 
+            score += 0.5 * np.exp(1 / 8 * (belt_length - ideal_belt_len) ** 2) 
             
             if hub == 'H':
                 score += 1 
@@ -587,6 +586,7 @@ class Architect(Model):
         if next_coords not in self.visited_cells:
             self.visited_cells.add(coords)
             next_token = post[next_coords]
+            # TODO include all types of pipes
             if token in "↑→↓←↖↗↘↙":
                 self.find_chain_recursively(next_coords, post, next_token, i+ 1)
             else:
