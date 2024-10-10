@@ -484,7 +484,7 @@ class Architect(Model):
         # Did we gain the required item?:
         score += gained * 0.1
 
-        # Did we produce a future goal shape?
+        # Did we produce a future goal shape? 
 
         # Checking elements per tile in the region
         for y, row in enumerate(pre_region):
@@ -492,10 +492,10 @@ class Architect(Model):
 
                 # Are Miners on a resource?
                 if post_region[y][x] in "▲▶▼◀" and pre_region[y][x] in "rgbX":
-                    score += 1.0
+                    score += 0.01 # very small increase -- finite number of resources so reward not infinite
 
                 # Do belts connect logically?
-
+                
 
                 # Do belts lead to the hub?
 
