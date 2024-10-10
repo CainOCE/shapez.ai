@@ -6,5 +6,8 @@
         "./src_ai"
     ],
     "python.testing.unittestEnabled": false,
-    "python.testing.pytestEnabled": true
+    "python.testing.pytestEnabled": true,
+    "python.analysis.extraPaths": [
+        "./src_ai"
+    ]
 }
