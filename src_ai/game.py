@@ -135,22 +135,24 @@ class GameState():
         action_space = []
         for y, row in enumerate(region):
             for x, token in enumerate(row):
-                if token == EMPTY_TOKEN:
+                global_x, global_y = ((x-len(row)//2)+4, (y-len(region)//2)+4)
+
+                # if resource -- add action to place miner
+                if f"{global_x}|{global_y}" in self.resources.keys():
+                    for rotation in rotations:
+                            action_space.append(
+                                f"{global_x}|{global_y}|{rotation}|miner"
+                            )
+                    # TODO - Ensure Miners face towards HUB
+                else:
                     # If token at x|y is empty, add all token actions to it.
                     for rotation in rotations:
                         for action in self.get_basic_actions():
-                            action_space.append(f"{x}|{y}|{rotation}|{action}")
+                            action_space.append(
+                                f"{global_x}|{global_y}|{rotation}|{action}"
+                            )
 
-                    # TODO Check if structure can fit at location. -- could we just overlap????
-
-
-                if f"{x}|{y}" in self.resources.keys():
-                    # if resource -- add action to place miner
-                    # TODO - only allow rotations which send in HUB direction
-                    for rotation in rotations:
-                            action_space.append(f"{x}|{y}|{rotation}|miner")
-
-
+                # TODO Check if structure can fit at location. Overlaps??
 
         return action_space
 
@@ -231,6 +233,7 @@ class GameState():
                 del self.entities[uid]
 
         # 5.  Import all resources
+        self.resources = {}
         for uid, chunk in game_state['map'].items():
             X, Y = map(int, uid.split('|'))
             for x, row in enumerate(chunk["resources"]):
@@ -248,14 +251,14 @@ class GameState():
                         value = val['color']
 
                     # Pack our resources into a list
-                    self.resources[f"{X*16+x}|{Y*16+y}"] = {
-                        "x": X*16+x, "y": Y*16+y,
+                    self.resources[f"{X*16+x+4}|{Y*16+y+4}"] = {
+                        "x": X*16+x+4, "y": Y*16+y+4,
                         "local_x": x, "local_y": y,
                         "chunk_x": X, "chunk_y": Y,
                         "token": token,
                         "type": val['_type'],
                         "value": value,
-                    }
+                    }  # TODO Why is the +4 offset necessary?
 
         return
 
@@ -300,7 +303,7 @@ class GameState():
     def get_region_in_play(self):
         """ Returns an square region of the game board with given radius. """
         return self.get_region_radial(x=0, y=0, radius=16)
-        
+
 
     def display_region(self, x=0, y=0, width=16, height=16, buffer=5):
         """ Creates a neatly displayed region graphic. """

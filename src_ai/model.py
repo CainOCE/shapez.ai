@@ -164,7 +164,7 @@ class Architect(Model):
         self.optimiser = keras.optimizers.Adam(learning_rate=0.0001)
         self.episodes = 0
         self.max_episodes = 10
-        self.max_frames = 1000
+        self.max_frames = 1024
         self.running_reward = 0
         self.episode_reward = 0
         self.frames = 0
@@ -347,7 +347,7 @@ class Architect(Model):
         - i think we do need a state because thats how tensorflow works to use
         prebuilt methods
         """
-        
+
         # Update every fourth frame and once batch size is over 32
         if (self.frames % self.update_after_actions == 0 and
             len(self.goal_history) > self.batch_size):

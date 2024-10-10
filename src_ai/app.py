@@ -5,6 +5,7 @@ Created on Tue Aug 13, 2024 at 09:55:35
 @authors: Cain Bruhn-Tanzer, Ryan Miles, Shannon Searle, Rhys Tyne
 """
 import logging
+import time
 from datetime import datetime
 
 from flask import Flask, request, jsonify
@@ -28,6 +29,7 @@ class ShapezAI(Flask):
         self.game = GameState()
         self.overseer = Overseer()
         self.architect = Architect()
+        self.t0 = time.time()
 
     def _routing(self):
         """Sets up the routes for the Flask app."""
@@ -61,6 +63,9 @@ class ShapezAI(Flask):
             """ Handles incoming training requests sent by the game instance.
             """
             pre_state = self.architect.get_state_machine()
+            t1 = time.time()
+            print(f"Processing time: {t1-self.t0} s")
+            self.t0 = time.time()
 
             # Log Query
             if pre_state == "ONLINE":
@@ -71,11 +76,13 @@ class ShapezAI(Flask):
             self.game.import_game_state(request.json)
 
             # Train the Architect Model
+            t0 = time.time()
             response = {
                 'action': self.architect.train(self.game),
                 'state': self.architect.get_state_machine(),
                 'status': self.architect._get_training_status(),
             }
+
             return jsonify(response)
 
 
