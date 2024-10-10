@@ -139,7 +139,17 @@ class GameState():
 
                 # if resource -- add action to place miner
                 if f"{global_x}|{global_y}" in self.resources.keys():
-                    for rotation in rotations:
+                    viable_rotations = [] # viable rotations depending on global x and y
+                    if global_x <= 0:
+                        viable_rotations.append(90)
+                    elif global_x >= 0:
+                        viable_rotations.append(270)
+                    if global_y <= 0:
+                        viable_rotations.append(180)
+                    elif global_y >= 0:
+                        viable_rotations.append(0)
+
+                    for rotation in viable_rotations:
                             action_space.append(
                                 f"{global_x}|{global_y}|{rotation}|miner"
                             )

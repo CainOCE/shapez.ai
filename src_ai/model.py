@@ -292,7 +292,7 @@ class Architect(Model):
             self.frames = 0
             episode_reward = 1
 
-            # Update running reward to check condition for solving
+            # Update running reward to check condition for solving      
             self.episode_reward_history.append(episode_reward)
             self.episode_reward_history = self.episode_reward_history[-100:]
             self.running_reward = np.mean(self.episode_reward_history)
