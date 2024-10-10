@@ -576,7 +576,7 @@ class Architect(Model):
 
         return score 
     
-    # 
+    # recursive function to find a belt chain
     def find_chain_recursively(self, coords, post, token, i):
         # coords - current (y, x)
         # token - current token
@@ -585,6 +585,7 @@ class Architect(Model):
         self.belt_chains[i].append(coords)
         next_coords = [sum(jj) for jj in zip(coords, direction)]
         if next_coords not in self.visited_cells:
+            self.visited_cells.add(coords)
             next_token = post[next_coords]
             if token in "↑→↓←↖↗↘↙":
                 self.find_chain_recursively(next_coords, post, next_token, i+ 1)
