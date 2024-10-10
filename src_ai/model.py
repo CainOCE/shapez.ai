@@ -30,6 +30,21 @@ logging.basicConfig(
     handlers=[logging.StreamHandler()]
 )
 
+DIRECTION_TO_COORD = {
+    '↑' : (-1, 0),
+    '→' : (0, 1),
+    '↓' : (1, 0),
+    '←' : (0, -1),
+    '↖' : (-1, -1),
+    '↗' : (-1, 1),
+    '↘' : (1, 1),
+    '↙' : (1, -1),
+    '▲' : (-1, 0),
+    '▶' : (0, 1),
+    '▼' : (1, 0),
+    '◀': (0, -1)
+}
+
 
 GOALS = [['CuCuCuCu', 30]] # currently only level 1
 
@@ -513,11 +528,11 @@ class Architect(Model):
                     score -= 0.01
 
                 # belt not on resource
-                if post_region[y][x] in "↑→↓←↖↗↘↙↗↘↙↖" and pre_region[y][x] not in "rgbX":
+                if post_region[y][x] in "↑→↓←↖↗↘↙" and pre_region[y][x] not in "rgbX":
                     score += 0.001 # small increase
 
                 # Do belts connect logically?
-                
+                score += self.find_belt_chains(post_region)
 
                 # Do belts start at a resource/lead to the hub?
 
@@ -529,7 +544,55 @@ class Architect(Model):
     
     # search through board and find belt chains
     def find_belt_chains(self, pre, post):
-        return
+        # return some score value
+        # longer chains give more rewards up to distance to hub (lets approximate @ region radius)
+        ideal_belt_len = len(post)//2 
+        # score_distance = np.exp(1/5*(d - ideal_belt_len)**2)
+
+        # construct belt chains
+        self.belt_chains = []
+        self.visited_cells = set()
+        i = 0
+        for y, row in enumerate(post):
+            for x, _ in enumerate(row):
+                token = post[y][x]
+                if post[y][x] in "▲▶▼◀" and pre[y][x] in "rgbX":
+                    self.belt_chains.append([])
+                    self.find_chain_recursively((y, x), post, token, i)
+                    i += 1
+                self.visited_cells.add((y, x))
+
+        # apply distance modifier to all belts
+        score = 0
+        for belt in self.belt_chains:
+            hub = belt.pop(-1) # remove last element, if 'H' --> hub, add multiplier, else '0'
+            belt_length = len(belt)
+            # random gaussian i made to give score, will refine with testing
+            score += 0.2 * np.exp(1 / 8 * (belt_length - ideal_belt_len) ** 2) 
+            
+            if hub == 'H':
+                score += 1 
+
+
+        return score 
+    
+    # 
+    def find_chain_recursively(self, coords, post, token, i):
+        # coords - current (y, x)
+        # token - current token
+        # i - current chain index in belt chain
+        direction = DIRECTION_TO_COORD[token]
+        self.belt_chains[i].append(coords)
+        next_coords = [sum(jj) for jj in zip(coords, direction)]
+        if next_coords not in self.visited_cells:
+            next_token = post[next_coords]
+            if token in "↑→↓←↖↗↘↙":
+                self.find_chain_recursively(next_coords, post, next_token, i+ 1)
+            else:
+                if post[next_coords] == "H": # if hub add 'H' at end of array
+                    self.belt_chains[i].append('H')
+                else:
+                    self.belt_chains[i].append('0')
 
 
     def log(self, state, state_next, action, reward, goal):
