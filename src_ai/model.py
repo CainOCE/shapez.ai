@@ -164,7 +164,7 @@ class Architect(Model):
         self.optimiser = keras.optimizers.Adam(learning_rate=0.0001)
         self.episodes = 0
         self.max_episodes = 10
-        self.max_frames = 1000
+        self.max_frames = 100
         self.running_reward = 0
         self.episode_reward = 0
         self.frames = 0
