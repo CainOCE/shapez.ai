@@ -476,7 +476,7 @@ class Architect(Model):
         item, required = self.pre_state.get_goal()
         stored_pre = self.pre_state.get_stored_amount(item)
         stored_post = self.post_state.get_stored_amount(item)
-        gained  = stored_post - stored_pre
+        gained = stored_post - stored_pre
 
         # Did we gain the required item?:
         score += gained * 0.1
@@ -492,6 +492,7 @@ class Architect(Model):
                     score += 1.0
 
                 # Do belts connect logically?
+
 
                 # Do belts lead to the hub?
 
