@@ -20,6 +20,7 @@ import logging
 import numpy as np
 import tensorflow as tf
 import keras
+import matplotlib.pyplot as plt
 
 # Configure logging
 log = logging.getLogger(__name__)
@@ -304,6 +305,7 @@ class Architect(Model):
                 self.episodes = 0
                 print(" -> Training Complete.")
                 self.state_machine = "ONLINE"
+                self.visualise()
                 return None
 
             # Start the Episode
@@ -315,6 +317,16 @@ class Architect(Model):
             self.episode_reward_history = self.episode_reward_history[-100:]
             self.running_reward = np.mean(self.episode_reward_history)
             self.state_machine = "PRE_FRAME"
+
+            # reset history arrays
+            # TODO -- cain are these in the right spot? meant to reset at start of each episode
+            self.action_history = []
+            self.state_history = []
+            self.state_next_history = []
+            self.goal_history = []
+            self.rewards_history = []
+            self.episode_reward_history = []
+
             return None
 
         # 3.  Pre-Frame:  Send an action to the frontend
@@ -421,28 +433,6 @@ class Architect(Model):
         )
         return
 
-    def _step(self, game):
-        """ Advances the model one step.
-        Rhys Notes:
-        - DO I NEED TO RESET ALL HYPERPARAMETERS TO ORIGINAL VALUES AT START
-        OF EACH EPISODE????
-        - i think we do need a state because thats how tensorflow works to use
-        prebuilt methods
-        """
-
-        # -> Printing
-        if not self.frames % self.update_target_network:
-        # update the the target network with new weights
-            self.target.set_weights(self.model.get_weights())
-            # Log details
-            template = "running reward: {:.2f} at episode {}, frame count {}"
-            print(template.format(
-                self.running_reward,
-                self.episodes,
-                self.frames)
-            )
-
-        return
 
     def _select_action(self):
         """ Select an action using an epsilon-greedy strategy. """
@@ -609,8 +599,13 @@ class Architect(Model):
         if len(self.rewards_history) > self.max_memory_length:
             del self.state_history[:1]
             del self.state_next_history[:1]
-            del self.rewards_history[:1]
+            # del self.rewards_history[:1] # keep reward history for visualisation
             del self.goal_history[:1]
+
+    def visualise(self):
+        steps = np.linspace(0, len(self.rewards_history), len(self.rewards_history))
+        plt.plot(steps, self.reward_history)
+        plt.show()
 
 
 if __name__ == "__main__":
