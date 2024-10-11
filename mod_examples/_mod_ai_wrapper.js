@@ -15,6 +15,7 @@ const METADATA = {
 
     settings: {
         paused: false,
+        doTraining: false
     },
 };
 
@@ -51,7 +52,7 @@ class Mod extends shapez.Mod {
     init() {
         console.log("Shapez.ai Module Initialized");
         const mod = this;
-        
+
         /* Sandbox Mode & Pausing */
         this.modInterface.replaceMethod(shapez.Blueprint, "getCost", () => 0);
         this.modInterface.replaceMethod(
@@ -60,6 +61,17 @@ class Mod extends shapez.Mod {
         this.modInterface.replaceMethod(shapez.GameHUD, "shouldPauseGame",
             (f) => { return f.call(this) || this.settings.paused; }
         );
+
+        /* Fires when the game has properly initialised */
+        this.signals.gameInitialized.add(root => {
+            if (mod.settings.doTraining) {
+                mod.settings.doTraining = false;
+                // Reposition the camera to be hub centred and start training
+                root.camera.setDesiredZoom(0.75);
+                root.camera.setDesiredCenter(new shapez.Vector(0, 0));
+                train();
+            }
+        });
 
         /* Change Blueprint methods such mouse postion does not afect shapezy bleuprints */
         let isBlueprint = false;
@@ -111,7 +123,7 @@ class Mod extends shapez.Mod {
                  if (!blueprint) {
                      return;
                  }
-     
+
                  if (!this.getHasFreeCopyPaste() && !blueprint.canAfford(this.root)) {
                      this.root.soundProxy.playUiError();
                      return;
@@ -123,7 +135,7 @@ class Mod extends shapez.Mod {
                      const worldPos = this.root.camera.screenToWorld(mousePosition);
                      tile = worldPos.toTileSpace();
                  }
- 
+
                  if (blueprint.tryPlace(this.root, tile)) {
                      if (!this.getHasFreeCopyPaste()) {
                          const cost = blueprint.getCost();
@@ -141,18 +153,6 @@ class Mod extends shapez.Mod {
                  return STOP_PROPAGATION;
              }
          });
-
-        /* Fires when the game has properly initialised */
-        this.signals.stateEntered.add(state => {
-            if (state instanceof shapez.InGameState) {
-                 const checkCameraReady = setInterval(() => {
-                    if (window.globalRoot && window.globalRoot.gameState.camera && window.globalRoot.gameState.camera.setDesiredZoom) {
-                        ROOT.camera.setDesiredZoom(0.1);
-                        clearInterval(checkCameraReady);
-                    }
-                }, 100);
-            }
-        });
 
         /* Executes code under development */
         function test() {
@@ -200,7 +200,10 @@ class Mod extends shapez.Mod {
 
                         // Handle the backend state machine
                         if (state == "ONLINE") { return; }
-                        else if (state == "EPISODE") { reset(); train(); }
+                        else if (state == "EPISODE") {
+                            mod.settings.doTraining = true;
+                            reset();
+                        }
                         else if (state == "PRE_FRAME") { train(); }
                         else if (state == "POST_FRAME") {
                             // Apply action to game, step X, return result
@@ -516,10 +519,10 @@ class Mod extends shapez.Mod {
                 display: inline-block;
                 width: 10vw; /* Set a fixed width */
                 padding: 10px 15px;
-                border-radius: 10px; 
+                border-radius: 10px;
                 margin-top: 10px;
                 z-index: 1000;
-                color: #000; 
+                color: #000;
                 font-size: 14px; /* Smaller font size */
                 height: auto; /* Allow height to adjust based on content */
                 top: calc(50px * var(--ui-scale));
@@ -558,7 +561,7 @@ class Mod extends shapez.Mod {
         function change_shapezy(image){
             shapezy.style.background = `url('${RESOURCES[image]}') no-repeat center center`;
             shapezy.style.backgroundSize = "contain";
-            
+
         }
 
         /* changes text in text box */
@@ -620,7 +623,7 @@ class Mod extends shapez.Mod {
                 modifiers: { shift: true, },
                 handler: root => { train(); return STOP; },
             },
-                
+
             {   /* shapezy information */
                 id: "shapez_ai_shapezy_fucntion_trigger",
                 keyCode: shapez.keyToKeyCode("I"),
