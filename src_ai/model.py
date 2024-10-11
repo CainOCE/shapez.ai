@@ -605,6 +605,9 @@ class Architect(Model):
     def visualise(self):
         steps = np.linspace(0, len(self.rewards_history), len(self.rewards_history))
         plt.plot(steps, self.reward_history)
+        plt.xlabel('steps')
+        plt.ylabel('reward')
+        plt.title('reward through time of last training episode')
         plt.show()
 
 
