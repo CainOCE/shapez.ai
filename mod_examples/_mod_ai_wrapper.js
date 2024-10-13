@@ -207,10 +207,8 @@ class Mod extends shapez.Mod {
                         else if (state == "PRE_FRAME") { train(); }
                         else if (state == "POST_FRAME") {
                             // Apply action to game, step X, return result
-                            for (let i = 0; i < 6; i++) {
                                 if (action) { place_entities([action]); };
-                                mod.step();
-                            }
+                            for (let i = 0; i < 6; i++) { mod.step(); }
                             train();
                         }
                         else if (state == "COMPLETE") { return; }
