@@ -520,10 +520,10 @@ class Architect(Model):
 
                 # belt not on resource
                 if post_region[y][x] in "↑→↓←↖↗↘↙" and pre_region[y][x] not in "rgbX":
-                    score += 0.001 # small increase
+                    score += 0.01 # small increase
 
                 # Do belts connect logically?
-                score += self.find_belt_chains(post_region) # only count belts that start on resource
+                score += self.find_belt_chains(pre_region, post_region) # only count belts that start on resource
 
                 # Do belts lead to the hub? -- accounted for in find_belt_chains
 
