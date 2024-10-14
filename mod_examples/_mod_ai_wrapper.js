@@ -64,11 +64,13 @@ class Mod extends shapez.Mod {
 
         /* Fires when the game has properly initialised */
         this.signals.gameInitialized.add(root => {
+            // Sets camera to be hub centred
+            root.camera.setDesiredZoom(0.75);
+            root.camera.setDesiredCenter(new shapez.Vector(0, 0));
+
+            // Starts training if required
             if (mod.settings.doTraining) {
                 mod.settings.doTraining = false;
-                // Reposition the camera to be hub centred and start training
-                root.camera.setDesiredZoom(0.75);
-                root.camera.setDesiredCenter(new shapez.Vector(0, 0));
                 train();
             }
         });
@@ -207,10 +209,8 @@ class Mod extends shapez.Mod {
                         else if (state == "PRE_FRAME") { train(); }
                         else if (state == "POST_FRAME") {
                             // Apply action to game, step X, return result
-                            for (let i = 0; i < 6; i++) {
-                                if (action) { place_entities([action]); };
-                                mod.step();
-                            }
+                            if (action) { place_entities([action]); };
+                            for (let i = 0; i < 6; i++) { mod.step(); }
                             train();
                         }
                         else if (state == "COMPLETE") { return; }
@@ -255,7 +255,20 @@ class Mod extends shapez.Mod {
         /* Places buildings given by the backend as a list solution. */
         function place_entities(entities) {
             const root = window.globalRoot;
+
             for (let e of entities){
+                // If entity exists remove it
+                for (let E of root.gameState.core.root.entityMgr.entities){
+                    let tilePos = E.components.StaticMapEntity.origin
+                    if (tilePos.x == e.x && tilePos.y == e.y) {
+                        console.log(`Hit: ${tilePos}`)
+                        root.gameState.core.root.map.removeStaticEntity(E);
+                        root.gameState.core.root.entityMgr.destroyEntity(E);
+                        break
+                    }
+                }
+
+                // Try placing entity.
                 root.logic.tryPlaceBuilding({
                     origin: new shapez.Vector(e.x, e.y),
                     building: shapez.gMetaBuildingRegistry.findByClass(

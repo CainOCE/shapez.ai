@@ -20,7 +20,6 @@ import logging
 import numpy as np
 import tensorflow as tf
 import keras
-import matplotlib.pyplot as plt
 
 # Configure logging
 log = logging.getLogger(__name__)
@@ -305,7 +304,7 @@ class Architect(Model):
                 self.episodes = 0
                 print(" -> Training Complete.")
                 self.state_machine = "ONLINE"
-                self.visualise()
+
                 return None
 
             # Start the Episode
@@ -504,7 +503,7 @@ class Architect(Model):
         # Did we gain the required item?:
         score += gained * 0.1
 
-        # Did we produce a future goal shape? 
+        # Did we produce a future goal shape?
 
         # Checking elements per tile in the region
         for y, row in enumerate(pre_region):
@@ -512,8 +511,8 @@ class Architect(Model):
 
                 # Are Miners on a resource?
                 if post_region[y][x] in "▲▶▼◀" and pre_region[y][x] in "rgbX":
-                    score += 0.01 
-                
+                    score += 0.01
+
                 # reduce score for miner not on resource
                 if post_region[y][x] in "▲▶▼◀" and pre_region[y][x] not in "rgbX":
                     score -= 0.01
@@ -527,15 +526,15 @@ class Architect(Model):
 
                 # Do belts lead to the hub? -- accounted for in find_belt_chains
 
-                # neg reward for placing building over another building -- dont think its neccessary 
+                # neg reward for placing building over another building -- dont think its neccessary
 
         return score
-    
+
     # search through board and find belt chains
     def find_belt_chains(self, pre, post):
         # return some score value
         # longer chains give more rewards up to distance to hub (lets approximate @ region radius)
-        ideal_belt_len = len(post)//2 
+        ideal_belt_len = len(post)//2
         # score_distance = np.exp(1/5*(d - ideal_belt_len)**2)
 
         # construct belt chains
@@ -557,14 +556,14 @@ class Architect(Model):
             hub = belt.pop(-1) # remove last element, if 'H' --> hub, add multiplier, else '0'
             belt_length = len(belt)
             # random gaussian i made to give score, will refine with testing
-            score += 0.5 * np.exp(1 / 8 * (belt_length - ideal_belt_len) ** 2) 
-            
+            score += 0.5 * np.exp(1 / 8 * (belt_length - ideal_belt_len) ** 2)
+
             if hub == 'H':
-                score += 1 
+                score += 1
 
 
-        return score 
-    
+        return score
+
     # recursive function to find a belt chain
     def find_chain_recursively(self, coords, post, token, i):
         # coords - current (y, x)
@@ -601,14 +600,6 @@ class Architect(Model):
             del self.state_next_history[:1]
             # del self.rewards_history[:1] # keep reward history for visualisation
             del self.goal_history[:1]
-
-    def visualise(self):
-        steps = np.linspace(0, len(self.rewards_history), len(self.rewards_history))
-        plt.plot(steps, self.reward_history)
-        plt.xlabel('steps')
-        plt.ylabel('reward')
-        plt.title('reward through time of last training episode')
-        plt.show()
 
 
 if __name__ == "__main__":
