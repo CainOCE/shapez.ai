@@ -64,11 +64,13 @@ class Mod extends shapez.Mod {
 
         /* Fires when the game has properly initialised */
         this.signals.gameInitialized.add(root => {
+            // Sets camera to be hub centred
+            root.camera.setDesiredZoom(0.75);
+            root.camera.setDesiredCenter(new shapez.Vector(0, 0));
+
+            // Starts training if required
             if (mod.settings.doTraining) {
                 mod.settings.doTraining = false;
-                // Reposition the camera to be hub centred and start training
-                root.camera.setDesiredZoom(0.75);
-                root.camera.setDesiredCenter(new shapez.Vector(0, 0));
                 train();
             }
         });
