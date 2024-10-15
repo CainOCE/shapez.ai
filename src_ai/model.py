@@ -508,21 +508,24 @@ class Architect(Model):
         # Checking elements per tile in the region
         for y, row in enumerate(pre_region):
             for x, _ in enumerate(row):
+                # Get the tiles at location in the before and after states
+                pre_tile = pre_region[y][x]
+                post_tile = post_region[y][x]
 
                 # Are Miners on a resource?
-                if post_region[y][x] in "▲▶▼◀" and pre_region[y][x] in "rgbX":
-                    score += 0.01
-
-                # reduce score for miner not on resource
-                if post_region[y][x] in "▲▶▼◀" and pre_region[y][x] not in "rgbX":
-                    score -= 0.01
+                if post_tile in "▲▶▼◀":
+                    if pre_tile in "rgbX":
+                        score += 0.01
+                    else:
+                        score -= 0.01
 
                 # belt not on resource
-                if post_region[y][x] in "↑→↓←↖↗↘↙" and pre_region[y][x] not in "rgbX":
+                if post_tile in "↑→↓←↖↗↘↙" and pre_tile not in "rgbX":
                     score += 0.01 # small increase
 
                 # Do belts connect logically?
-                score += self.find_belt_chains(pre_region, post_region) # only count belts that start on resource
+                score += self.find_belt_chains(pre_region, post_region)
+                # only count belts that start on resource
 
                 # Do belts lead to the hub? -- accounted for in find_belt_chains
 
