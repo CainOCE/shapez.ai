@@ -244,7 +244,7 @@ class Architect(Model):
         )
 
     def get_training_status(self):
-        """ Utility:  Gets the current training status. """
+        """ Utility:  Gets the current training status as a print statement. """
         e, e_max = (self.episodes, self.max_episodes)
         f, f_max = (self.frames, self.max_frames)
         a = str(self.queued_action).ljust(20)
@@ -316,7 +316,7 @@ class Architect(Model):
             self.running_reward = np.mean(self.episode_reward_history)
             self.state_machine = "PRE_FRAME"
 
-            # reset history arrays
+            # reset history arrays for this episode
             # TODO -- cain are these in the right spot? meant to reset at start of each episode
             self.action_history = []
             self.state_history = []
