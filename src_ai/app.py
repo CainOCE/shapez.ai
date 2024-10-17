@@ -20,7 +20,7 @@ log.setLevel(logging.WARNING)
 
 
 class ShapezAI(Flask):
-    """ App built atop FLASK to provide a REST API for the python backend. """
+    """ App built atop FLASK to provide a REST API for the python backend """
     def __init__(self):
         super().__init__(__name__)
         CORS(self)

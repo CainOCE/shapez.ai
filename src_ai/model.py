@@ -229,10 +229,10 @@ class Architect(Model):
         # See https://keras.io/examples/rl/deep_q_network_breakout/
         return keras.Sequential(
             [
-                keras.layers.Input(shape=(4, 84, 84)),
+                keras.layers.Input(shape=(self.num_actions, 84, 84)),
                 keras.layers.Lambda(
                     lambda tensor: keras.ops.transpose(tensor, [0, 2, 3, 1]),
-                    output_shape=(84, 84, 4),
+                    output_shape=(84, 84, self.num_actions),
                 ),
                 # Convolutions on the frames on the screen
                 keras.layers.Conv2D(32, 8, strides=4, activation="relu",),
@@ -240,7 +240,7 @@ class Architect(Model):
                 keras.layers.Conv2D(64, 3, strides=1, activation="relu"),
                 keras.layers.Flatten(),
                 keras.layers.Dense(512, activation="relu"),
-                keras.layers.Dense(num_actions, activation="linear"),
+                keras.layers.Dense(self.num_actions, activation="linear"),
             ]
         )
 
@@ -446,7 +446,7 @@ class Architect(Model):
             action = random.choice(action_space)
         else:
             # Predict action Q-Value from Environment
-            region = self.pre_state.get_region_in_play()
+            region = np.array(self.pre_state.get_region_in_play())
             state_tensor = keras.ops.convert_to_tensor(region)
             state_tensor = keras.ops.expand_dims(state_tensor, 0)
 
