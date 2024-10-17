@@ -10,6 +10,8 @@ Created on Wed Sep 25, 2024 at 13:00:32
 # Note: Shapez.io defines rotation in True North Bearings e.g. URDL or NESW
 
 
+import numpy as np
+
 TERM_COLOUR = {
     'r': "\033[41m",
     'g': "\033[42m",
@@ -291,6 +293,22 @@ class GameState():
 
         # Remove the buffered region and return
         return [row[buffer:-buffer] for row in tokens[buffer:-buffer]]
+    
+
+    def get_region_ints(self, x=0, y=0, width=16, height=16, buffer=5):
+        # get region without using strings
+        state_str = self.get_region()
+        state = np.zeros(8064)
+        k = 0
+        for i, row in enumerate(state_str):
+            for j, token in enumerate(row):
+                if token not in "".join(STRUCTS["hub"]):
+                    state[k] = k
+                    k += 1
+                   
+        return state
+    
+
 
     def get_region_radial(self, x=0, y=0, radius=16):
         """ Returns an square region of the game board with given radius. """

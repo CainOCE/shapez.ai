@@ -189,15 +189,15 @@ class Architect(Model):
 
         # Chosen Hyperparameters
         self.gamma = 0.99
-        self.epsilon = 1.0
+        self.epsilon = 0.01
         self.epsilon_min = 0.1
         self.epsilon_max = 1.0
         self.epsilon_interval = self.epsilon_max - self.epsilon_min
         self.batch_size = 32
 
         # Training Values
-        self.epsilon_random_frames = 2500  # Random Action Frames
-        self.epsilon_greedy_frames = 1000000.0  # Exploration Frames
+        self.epsilon_random_frames = 2  # Random Action Frames
+        self.epsilon_greedy_frames = 100000.0  # Exploration Frames
         self.max_memory_length = 100  # Maximum replay length
         self.update_after_actions = 5  # Train Model every X Actions
         self.update_target_network = 5000  # Network Update Target
@@ -228,10 +228,10 @@ class Architect(Model):
         # See https://keras.io/examples/rl/deep_q_network_breakout/
         return keras.Sequential(
             [
-                keras.layers.Input(shape=(self.num_actions, 84, 84)),
+                keras.layers.Input(shape=(8, 42, 24)),
                 keras.layers.Lambda(
                     lambda tensor: keras.ops.transpose(tensor, [0, 2, 3, 1]),
-                    output_shape=(84, 84, self.num_actions),
+                    output_shape=(32, 32, 1),
                 ),
                 # Convolutions on the frames on the screen
                 keras.layers.Conv2D(32, 8, strides=4, activation="relu",),
@@ -440,20 +440,22 @@ class Architect(Model):
 
         # Take Random or attempt prediction.
         if (self.frames < self.epsilon_random_frames or
-            self.epsilon > np.random.rand(1)[0]):
+            self.epsilon > eps):
             # Take random action
             action = random.choice(action_space)
         else:
             # Predict action Q-Value from Environment
-            region = np.array(self.pre_state.get_region_in_play())
+            region = self.pre_state.get_region_ints().reshape(8, 42, 24)
             state_tensor = keras.ops.convert_to_tensor(region)
             state_tensor = keras.ops.expand_dims(state_tensor, 0)
 
             # Take best action
                 # TODO Adjust actions by weights
                 # TODO how do action probs change as action space changes
+            print(region)
+            print(state_tensor)
             action_probs = self.model(state_tensor, training=False)
-            action = keras.ops.argmax(action_probs[0]).numpy()
+            action = keras.ops.argmax(action_probs).numpy()[0]
 
         # Decay probability of taking random action
         self.epsilon -= self.epsilon_interval / self.epsilon_greedy_frames
