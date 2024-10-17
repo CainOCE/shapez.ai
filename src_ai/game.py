@@ -303,8 +303,9 @@ class GameState():
         for i, row in enumerate(state_str):
             for j, token in enumerate(row):
                 if token not in "".join(STRUCTS["hub"]):
-                    state[k] = k
-                    k += 1
+                    for l in range(8):
+                        state[k] = k
+                        k += 1
                    
         return state
     
