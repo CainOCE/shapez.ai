@@ -154,7 +154,7 @@ class Overseer(Model):
         temp_response.extend([
             {"type": "Miner", "x": 7, "y": -2, "rotation": 270}
         ])
-
+        
         return temp_response
 
 
@@ -308,7 +308,7 @@ class Architect(Model):
 
             # Start the Episode
             self.frames = 0
-            episode_reward = 1
+            episode_reward = 0
 
             # Update running reward to check condition for solving
             self.episode_reward_history.append(episode_reward)

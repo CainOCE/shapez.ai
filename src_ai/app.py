@@ -51,7 +51,10 @@ class ShapezAI(Flask):
             print(self.game)
 
             # Query Overseer
-            response = self.overseer.query(self.game)
+            #response = self.overseer.query(self.game)
+
+            # query architect
+            response = self.architect.query(self.game)
 
             # Show a nice output to us after a query.
             print(self.game.display_region_info(-18, -18, 36, 36))
