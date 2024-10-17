@@ -190,14 +190,14 @@ class Architect(Model):
 
         # Chosen Hyperparameters
         self.gamma = 0.99
-        self.epsilon = 0.01
+        self.epsilon = 1.0
         self.epsilon_min = 0.1
         self.epsilon_max = 1.0
         self.epsilon_interval = self.epsilon_max - self.epsilon_min
         self.batch_size = 32
 
         # Training Values
-        self.epsilon_random_frames = 2  # Random Action Frames
+        self.epsilon_random_frames = 25000  # Random Action Frames
         self.epsilon_greedy_frames = 100000.0  # Exploration Frames
         self.max_memory_length = 100  # Maximum replay length
         self.update_after_actions = 5  # Train Model every X Actions
@@ -442,6 +442,31 @@ class Architect(Model):
         action = keras.ops.argmax(action_probs).numpy()[0]
         
         return action
+    
+    def reverse_action_int_to_action(self, int):
+
+        cell_index = int//8
+        x = cell_index % 32 # hard coded radius
+        y = cell_index // 32
+        
+        cell_type_int = int/8 - cell_index
+        if cell_type_int < 0.5:
+            cell_type = "Miner"
+        else:
+            cell_type = "Belt"
+
+        if cell_type_int == 0 or cell_type_int == 0.5:
+            rotation = 0
+        if cell_type_int == 0.125 or cell_type_int == 0.625:
+            rotation = 90
+        if cell_type_int == 0.25 or cell_type_int == 0.75:
+            rotation = 180
+        if cell_type_int == 0.375 or cell_type_int == 0.875:
+            rotation = 270
+
+
+        return {"type": cell_type, "x": x, "y": y, "rotation": rotation}
+
 
 
     def _select_action(self):
@@ -464,8 +489,6 @@ class Architect(Model):
             # Take best action
                 # TODO Adjust actions by weights
                 # TODO how do action probs change as action space changes
-            print(region)
-            print(state_tensor)
             action_probs = self.model(state_tensor, training=False)
             action = keras.ops.argmax(action_probs).numpy()[0]
 
