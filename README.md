@@ -2,7 +2,9 @@
 
 Shapez.ai is AI Assistant & Player for Shapez.io. This assistant named shapezy (in the bottom right of your screen) can give you the best next move or moves to make in your current sistuation!
 
-<br>
+<a href="https://tobspr.io/shapez-2" title="shapez.ai">
+    <img src="src_ai/docs/shapezy png's/winky.png" alt="shapezy">
+</a>
 
 ## New Features/Buttons include:
 1. Shift + i: Gives information on how to use this mod.
