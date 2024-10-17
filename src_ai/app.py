@@ -73,11 +73,10 @@ class ShapezAI(Flask):
             self.game.import_game_state(request.json)
 
             # Train the Architect Model
-            t0 = time.time()
             response = {
                 'action': self.architect.train(self.game),
                 'state': self.architect.get_state_machine(),
-                'status': self.architect._get_training_status(),
+                'status': self.architect.get_training_status(),
             }
 
             return jsonify(response)

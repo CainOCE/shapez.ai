@@ -5,7 +5,6 @@ Created on Tue Aug 13, 2024 at 09:55:41
 @author: Cain Bruhn-Tanzer, Rhys Tyne
 """
 import os
-import sys
 
 # Set environment flags before running imports.
 os.environ["KERAS_BACKEND"] = "tensorflow"
@@ -244,8 +243,8 @@ class Architect(Model):
             ]
         )
 
-    def _get_training_status(self):
-        """ Utility:  Gets the current training status. """
+    def get_training_status(self):
+        """ Utility:  Gets the current training status as a print statement. """
         e, e_max = (self.episodes, self.max_episodes)
         f, f_max = (self.frames, self.max_frames)
         a = str(self.queued_action).ljust(20)
@@ -286,7 +285,7 @@ class Architect(Model):
             # Stop the episode
             if (solved or capped):
                 self.episodes -= 1
-                print(self._get_training_status())
+                print(self.get_training_status())
                 result = "Capped" if capped else "Solved"
                 print(f" -> Training loop result in a '{result}' state")
                 print(f" -> Episode trained in {self.episode_time} s")
@@ -317,7 +316,7 @@ class Architect(Model):
             self.running_reward = np.mean(self.episode_reward_history)
             self.state_machine = "PRE_FRAME"
 
-            # reset history arrays
+            # reset history arrays for this episode
             # TODO -- cain are these in the right spot? meant to reset at start of each episode
             self.action_history = []
             self.state_history = []
@@ -348,7 +347,7 @@ class Architect(Model):
             # e.g. {"type": "Belt", "x": 2, "y": y, "rotation": 270}
 
             # Print Status Helper
-            print(self._get_training_status(), end="\r")
+            print(self.get_training_status(), end="\r")
             self.state_machine = "POST_FRAME"
             return self.get_queued_action()
 
@@ -508,21 +507,24 @@ class Architect(Model):
         # Checking elements per tile in the region
         for y, row in enumerate(pre_region):
             for x, _ in enumerate(row):
+                # Get the tiles at location in the before and after states
+                pre_tile = pre_region[y][x]
+                post_tile = post_region[y][x]
 
                 # Are Miners on a resource?
-                if post_region[y][x] in "▲▶▼◀" and pre_region[y][x] in "rgbX":
-                    score += 0.01
-
-                # reduce score for miner not on resource
-                if post_region[y][x] in "▲▶▼◀" and pre_region[y][x] not in "rgbX":
-                    score -= 0.01
+                if post_tile in "▲▶▼◀":
+                    if pre_tile in "rgbX":
+                        score += 0.01
+                    else:
+                        score -= 0.01
 
                 # belt not on resource
-                if post_region[y][x] in "↑→↓←↖↗↘↙" and pre_region[y][x] not in "rgbX":
+                if post_tile in "↑→↓←↖↗↘↙" and pre_tile not in "rgbX":
                     score += 0.01 # small increase
 
                 # Do belts connect logically?
-                score += self.find_belt_chains(pre_region, post_region) # only count belts that start on resource
+                score += self.find_belt_chains(pre_region, post_region)
+                # only count belts that start on resource
 
                 # Do belts lead to the hub? -- accounted for in find_belt_chains
 
