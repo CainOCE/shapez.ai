@@ -52,3 +52,17 @@ game frontend.
 > src_ai/app.py -> Backend Entrypoint \
 > src_ai/model.py -> AI Model \
 > src_ai/signals.py -> REST API
+
+## New Features/Buttons include:
+1. Shift + i: Gives information on how to use this mod.
+2. Shift + t: Allows you to watch the model train.
+3. Shift + r: Resets the game.
+4. Shift + q: Allows you to see the best next move or moves as a blueprint. You can either choose to place the entity down with the left mouse click or disgard it with the right mouse click.
+
+<hr>
+
+<a href="" title="shapez.ai">
+    <img src="src_ai/docs/poster.jpg" alt="shapezy">
+</a>
+
+<hr>
