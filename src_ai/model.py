@@ -189,15 +189,15 @@ class Architect(Model):
 
         # Chosen Hyperparameters
         self.gamma = 0.99
-        self.epsilon = 1.0
+        self.epsilon = 0.001
         self.epsilon_min = 0.1
         self.epsilon_max = 1.0
         self.epsilon_interval = self.epsilon_max - self.epsilon_min
         self.batch_size = 32
 
         # Training Values
-        self.epsilon_random_frames = 2500  # Random Action Frames
-        self.epsilon_greedy_frames = 1000000.0  # Exploration Frames
+        self.epsilon_random_frames = 100  # Random Action Frames
+        self.epsilon_greedy_frames = 10.0  # Exploration Frames
         self.max_memory_length = 100  # Maximum replay length
         self.update_after_actions = 5  # Train Model every X Actions
         self.update_target_network = 5000  # Network Update Target
