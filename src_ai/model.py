@@ -154,6 +154,7 @@ class Overseer(Model):
         temp_response.extend([
             {"type": "Miner", "x": 7, "y": -2, "rotation": 270}
         ])
+        best_act = select_q_action()
 
         return temp_response
 
@@ -456,7 +457,7 @@ class Architect(Model):
             action = random.choice(action_space)
         else:
             # Predict action Q-Value from Environment
-            region = self.pre_state.get_region_ints().reshape(1, 8, 42, 24)
+            region = self.pre_state.get_region_ints().reshape(8, 42, 24)
             state_tensor = keras.ops.convert_to_tensor(region)
             state_tensor = keras.ops.expand_dims(state_tensor, 0)
 
