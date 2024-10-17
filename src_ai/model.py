@@ -430,6 +430,17 @@ class Architect(Model):
             zip(grads, self.model.trainable_variables)
         )
         return
+    
+    # return recommended action on request
+    def select_q_action(self):
+        region = self.pre_state.get_region_ints().reshape(1, 8, 42, 24)
+        state_tensor = keras.ops.convert_to_tensor(region)
+        state_tensor = keras.ops.expand_dims(state_tensor, 0)
+
+        action_probs = self.model(state_tensor, training=False)
+        action = keras.ops.argmax(action_probs).numpy()[0]
+        
+        return action
 
 
     def _select_action(self):
@@ -445,7 +456,7 @@ class Architect(Model):
             action = random.choice(action_space)
         else:
             # Predict action Q-Value from Environment
-            region = self.pre_state.get_region_ints().reshape(8, 42, 24)
+            region = self.pre_state.get_region_ints().reshape(1, 8, 42, 24)
             state_tensor = keras.ops.convert_to_tensor(region)
             state_tensor = keras.ops.expand_dims(state_tensor, 0)
 
