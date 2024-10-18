@@ -225,10 +225,6 @@ class Architect(Model):
 
         temp_response.append(self.select_q_action())
 
-        
-
-        print(temp_response)
-
         return temp_response
 
     def get_state_machine(self):
@@ -490,9 +486,6 @@ class Architect(Model):
         cell_index = int1//8
         x = cell_index % 32 - 16# hard coded radius
         y = cell_index // 32 - 16
-        print(int1)
-        print(x)
-        print(y)
         
         cell_type_int = int1/8 - cell_index
         if cell_type_int < 0.5:

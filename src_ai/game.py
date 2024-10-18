@@ -149,7 +149,6 @@ class GameState():
                             )
                     # TODO Check if structure can fit at location. Overlaps??
         # print(self.display_region(-16, -16))
-        print("".join(STRUCTS["hub"]))
         print(f"{len(region[0])}x{len(region)} ?== {32*32}")
         print(f"Action Space Len: {len(action_space)}")
         print(f"{len(self.resources.keys())}")
@@ -306,7 +305,7 @@ class GameState():
                     for l in range(8):
                         state[i, j, l] = k
                         k += 1
-        print("K is: " + str(k)+ "\n")
+
         tensorState = tf.compat.v1.placeholder_with_default(state, [None, 32, 32, 8])
                    
         return tensorState
