@@ -154,7 +154,7 @@ class Overseer(Model):
         temp_response.extend([
             {"type": "Miner", "x": 7, "y": -2, "rotation": 270}
         ])
-        
+
         return temp_response
 
 
@@ -189,14 +189,14 @@ class Architect(Model):
 
         # Chosen Hyperparameters
         self.gamma = 0.99
-        self.epsilon = 1.0
+        self.epsilon = 0.01
         self.epsilon_min = 0.1
         self.epsilon_max = 1.0
         self.epsilon_interval = self.epsilon_max - self.epsilon_min
         self.batch_size = 32
 
         # Training Values
-        self.epsilon_random_frames = 25000  # Random Action Frames
+        self.epsilon_random_frames = 2  # Random Action Frames
         self.epsilon_greedy_frames = 100000.0  # Exploration Frames
         self.max_memory_length = 100  # Maximum replay length
         self.update_after_actions = 5  # Train Model every X Actions
@@ -481,7 +481,7 @@ class Architect(Model):
             action = random.choice(action_space)
         else:
             # Predict action Q-Value from Environment
-            region = self.pre_state.get_region_ints().reshape(8, 42, 24)
+            region = np.array(self.pre_state.get_region_ints().reshape(1, 8, 42, 24))
             state_tensor = keras.ops.convert_to_tensor(region)
             state_tensor = keras.ops.expand_dims(state_tensor, 0)
 
