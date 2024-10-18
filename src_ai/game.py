@@ -11,6 +11,7 @@ Created on Wed Sep 25, 2024 at 13:00:32
 
 
 import numpy as np
+import tensorflow as tf
 
 TERM_COLOUR = {
     'r': "\033[41m",
@@ -298,16 +299,17 @@ class GameState():
     def get_region_ints(self, x=0, y=0, width=16, height=16, buffer=5):
         # get region without using strings
         state_str = self.get_region()
-        state = np.zeros(8064)
+        state = np.zeros((32, 32, 8))
         k = 0
         for i, row in enumerate(state_str):
             for j, token in enumerate(row):
-                if token not in "".join(STRUCTS["hub"]):
                     for l in range(8):
-                        state[k] = k
+                        state[i, j, l] = k
                         k += 1
+        print("K is: " + str(k)+ "\n")
+        tensorState = tf.compat.v1.placeholder_with_default(state, [None, 32, 32, 8])
                    
-        return state
+        return tensorState
     
 
 

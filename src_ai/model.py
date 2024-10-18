@@ -163,6 +163,7 @@ class Architect(Model):
 
     def __init__(self, seed=42):
         super().__init__()
+        self.game = None
         self.name = "Architect"
         self.version = "0.5.0"
         self.state_machine = "ONLINE"
@@ -179,7 +180,7 @@ class Architect(Model):
         # Model Training Factors
         self.seed = seed
         self.optimiser = keras.optimizers.Adam(learning_rate=0.0001)
-        self.episodes = 0
+        self.episodes = 10
         self.max_episodes = 30
         self.max_frames = 10000
         self.running_reward = 0
@@ -189,14 +190,14 @@ class Architect(Model):
 
         # Chosen Hyperparameters
         self.gamma = 0.99
-        self.epsilon = 0.01
+        self.epsilon = 1.0
         self.epsilon_min = 0.1
         self.epsilon_max = 1.0
         self.epsilon_interval = self.epsilon_max - self.epsilon_min
         self.batch_size = 32
 
         # Training Values
-        self.epsilon_random_frames = 2  # Random Action Frames
+        self.epsilon_random_frames = 2500  # Random Action Frames
         self.epsilon_greedy_frames = 100000.0  # Exploration Frames
         self.max_memory_length = 100  # Maximum replay length
         self.update_after_actions = 5  # Train Model every X Actions
@@ -215,6 +216,21 @@ class Architect(Model):
         self.model = self.create_q_model()
         self.target = self.create_q_model()
 
+    def query(self, scenario):
+        """ Returns a single action given a scenario.
+            - Build a response from the
+            - Add in a few queries of Architect if necessary.
+        """
+        temp_response = []
+
+        temp_response.append(self.select_q_action())
+
+        
+
+        print(temp_response)
+
+        return temp_response
+
     def get_state_machine(self):
         """ Returns the current state in the state machine. """
         return self.state_machine
@@ -228,18 +244,17 @@ class Architect(Model):
         # See https://keras.io/examples/rl/deep_q_network_breakout/
         return keras.Sequential(
             [
-                keras.layers.Input(shape=(8, 42, 24)),
+                keras.layers.Input(shape=(32,32,8)),
                 keras.layers.Lambda(
-                    lambda tensor: keras.ops.transpose(tensor, [0, 2, 3, 1]),
+                    lambda tensor: keras.ops.transpose(tensor, [ 1,2,3, 0]),
                     output_shape=(32, 32, 1),
                 ),
-                # Convolutions on the frames on the screen
-                keras.layers.Conv2D(32, 8, strides=4, activation="relu",),
-                keras.layers.Conv2D(64, 4, strides=2, activation="relu"),
-                keras.layers.Conv2D(64, 3, strides=1, activation="relu"),
-                keras.layers.Flatten(),
-                keras.layers.Dense(512, activation="relu"),
-                keras.layers.Dense(self.num_actions, activation="linear"),
+                keras.layers.Conv2D(16, (4, 4), strides=1, activation="relu"),
+                keras.layers.Conv2D(8, (4, 4), strides=1, activation="relu"),
+                keras.layers.Conv2D(2, (2, 2), strides=1, activation="relu"),
+               # keras.layers.Flatten(),
+                keras.layers.Dense(32, activation="relu"),
+                keras.layers.Dense(self.num_actions, activation="linear")
             ]
         )
 
@@ -308,7 +323,7 @@ class Architect(Model):
 
             # Start the Episode
             self.frames = 0
-            episode_reward = 0
+            episode_reward = 1
 
             # Update running reward to check condition for solving
             self.episode_reward_history.append(episode_reward)
@@ -433,16 +448,21 @@ class Architect(Model):
     
     # return recommended action on request
     def select_q_action(self):
-        region = self.pre_state.get_region_ints().reshape(1, 8, 42, 24)
-        state_tensor = keras.ops.convert_to_tensor(region)
-        state_tensor = keras.ops.expand_dims(state_tensor, 0)
-
-        action_probs = self.model(state_tensor, training=False)
-        action = keras.ops.argmax(action_probs).numpy()[0]
         
-        return action
+        action = random.choice(self.game.get_action_space())
+        x, y, rot, building = action.split("|")
+        
+        action1 = {
+            "type": building.title(),
+            "x": int(x)-4, 
+            "y": int(y)-4,
+            "rotation": int(rot)
+        }
+
+        return action1
     
     def reverse_action_int_to_action(self, int):
+
 
         cell_index = int//8
         x = cell_index % 32 # hard coded radius
@@ -466,6 +486,32 @@ class Architect(Model):
 
         return {"type": cell_type, "x": x, "y": y, "rotation": rotation}
 
+    def reverse_action_int_to_string(self, int1):
+        cell_index = int1//8
+        x = cell_index % 32 - 16# hard coded radius
+        y = cell_index // 32 - 16
+        print(int1)
+        print(x)
+        print(y)
+        
+        cell_type_int = int1/8 - cell_index
+        if cell_type_int < 0.5:
+            cell_type = "Miner"
+        else:
+            cell_type = "Belt"
+
+        if cell_type_int == 0 or cell_type_int == 0.5:
+            rotation = 0
+        if cell_type_int == 0.125 or cell_type_int == 0.625:
+            rotation = 90
+        if cell_type_int == 0.25 or cell_type_int == 0.75:
+            rotation = 180
+        if cell_type_int == 0.375 or cell_type_int == 0.875:
+            rotation = 270
+
+
+        #return cell_type + "|"+str(int(x))+"|"+str(int(y))+"|"+str(rotation)
+        return f"{x}|{y}|{rotation}|{cell_type}"
 
 
     def _select_action(self):
@@ -481,28 +527,30 @@ class Architect(Model):
             action = random.choice(action_space)
         else:
             # Predict action Q-Value from Environment
-            region = np.array(self.pre_state.get_region_ints().reshape(1, 8, 42, 24))
-            state_tensor = keras.ops.convert_to_tensor(region)
+            region = self.pre_state.get_region_ints()
+            state_tensor = tf.convert_to_tensor(region)
             state_tensor = keras.ops.expand_dims(state_tensor, 0)
 
             # Take best action
                 # TODO Adjust actions by weights
                 # TODO how do action probs change as action space changes
             action_probs = self.model(state_tensor, training=False)
-            action = keras.ops.argmax(action_probs).numpy()[0]
+            actionInt = keras.ops.argmax(action_probs).numpy()
+            action = self.reverse_action_int_to_string(actionInt)
 
         # Decay probability of taking random action
         self.epsilon -= self.epsilon_interval / self.epsilon_greedy_frames
         self.epsilon = max(self.epsilon, self.epsilon_min)
-
+        
         # Split action back to variables
-        x, y, rot, action = action.split("|")
-        action = {
-            "type": action,
-            "x": int(x)-4, "y": int(y)-4,
+        x, y, rot, building = action.split("|")
+        action1 = {
+            "type": building,
+            "x": int(x)-4, 
+            "y": int(y)-4,
             "rotation": int(rot)
         }
-        return action
+        return action1
 
     def get_queued_action(self):
         """ Returns the queued action from the model and removes it. """

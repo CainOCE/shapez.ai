@@ -29,6 +29,7 @@ class ShapezAI(Flask):
         self.game = GameState()
         self.overseer = Overseer()
         self.architect = Architect()
+        self.architect.game = self.game
         self.t0 = time.time()
 
     def _routing(self):
