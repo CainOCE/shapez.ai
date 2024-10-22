@@ -211,7 +211,11 @@ class Mod extends shapez.Mod {
                         else if (state == "PRE_FRAME") { train(); }
                         else if (state == "POST_FRAME") {
                             // Apply action to game, step X, return result
-                            if (action) { place_entities([action]); };
+                            if (action) { 
+                                //console.log("id ont giver no fucmoks");
+                                console.log(action);
+                                place_entities([action]);
+                            };
                             for (let i = 0; i < 6; i++) { mod.step(); }
                             train();
                         }
@@ -234,6 +238,7 @@ class Mod extends shapez.Mod {
 
         /* Places a ghost entity at the desired location */
         function addGhost(entities, root) {
+            //console.log(entities)
             var tileList = [];
             var entitiyList = [];
             for (let e of entities) {
@@ -259,8 +264,8 @@ class Mod extends shapez.Mod {
         /* Places buildings given by the backend as a list solution. */
         function place_entities(entities) {
             const root = window.globalRoot;
-
-            for (let e of entities){
+            //console.log(entities)
+            for (let e of entities) {
                 // If entity exists remove it
                 for (let E of root.gameState.core.root.entityMgr.entities){
                     let tilePos = E.components.StaticMapEntity.origin
@@ -271,7 +276,11 @@ class Mod extends shapez.Mod {
                         break
                     }
                 }
-
+                if (e.type == "Belt") {
+                    e.type = "belt";
+                } else if (e.type == "Miner") {
+                    e.type = "miner";
+                }
                 // Try placing entity.
                 root.logic.tryPlaceBuilding({
                     origin: new shapez.Vector(e.x, e.y),
@@ -603,7 +612,7 @@ class Mod extends shapez.Mod {
 
         /* changes text in text box */
         function change_text(text) {
-            console.log(text);
+            //console.log(text);
             speechBubble.innerHTML = text;
             if (text != "") {
                 speechBubble.style.backgroundColor = "ivory";

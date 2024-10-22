@@ -12,7 +12,7 @@ Created on Wed Sep 25, 2024 at 13:00:32
 
 import numpy as np
 import tensorflow as tf
-
+# tf.compat.v1.disable_eager_execution()
 TERM_COLOUR = {
     'r': "\033[41m",
     'g': "\033[42m",
@@ -152,6 +152,7 @@ class GameState():
         print(f"{len(region[0])}x{len(region)} ?== {32*32}")
         print(f"Action Space Len: {len(action_space)}")
         print(f"{len(self.resources.keys())}")
+        # print(action_space)
         return action_space
 
     def import_game_state(self, game_state):
@@ -306,8 +307,10 @@ class GameState():
                         state[i, j, l] = k
                         k += 1
 
-        tensorState = tf.compat.v1.placeholder_with_default(state, [None, 32, 32, 8])
-                   
+        # print(state)
+        # tensorState = tf.compat.v1.placeholder_with_default(state, [None, 32, 32, 8])
+        tensorState = tf.constant(state) 
+        # print(tensorState)
         return tensorState
     
 
